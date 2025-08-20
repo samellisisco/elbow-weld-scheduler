@@ -53,7 +53,7 @@ st.header("🛠️ Machine Configurations")
 machines = []
 
 for i in range(1, 5):
-    with st.expander(f"Machine {i}"):
+    with st.expander(f"Machine {i} ⚡"):
         c1, c2, c3 = st.columns(3)
         with c1:
             start_time = st.number_input(f"Start time (min)", min_value=0, value=(i - 1) * 10, key=f"start_{i}")
@@ -97,7 +97,7 @@ if st.button("📊 Generate Chart"):
     machine_overlap_durations = {f"Machine {i+1}": 0.0 for i in range(4)}
 
     step_labels = ["Set up", "Weld start", "Stamping", "Cooling"]
-    step_colors = ["orange", "grey", "yellow", "lightblue"]
+    step_colors = ["orange", "grey", "yellow", "blue"]
 
     for idx, machine in enumerate(machines):
         current_time = machine["start_time"]
@@ -133,7 +133,8 @@ if st.button("📊 Generate Chart"):
 
         machine_run_times.append((f"Machine {idx + 1}", round(current_time - machine_start_time, 2)))
 
-    # Overlap detection
+    # --- Overlap detection ---
+    # 1. Setup vs Stamping
     for s_start, s_end, s_machine in all_setup_intervals:
         for t_start, t_end, t_machine in all_stamping_intervals:
             if s_machine != t_machine:
@@ -151,6 +152,43 @@ if st.button("📊 Generate Chart"):
                     machine_overlap_durations[f"Machine {s_machine}"] += overlap_duration
                     machine_overlap_durations[f"Machine {t_machine}"] += overlap_duration
 
+    # 2. Setup vs Setup
+    for i, (s1_start, s1_end, m1) in enumerate(all_setup_intervals):
+        for j, (s2_start, s2_end, m2) in enumerate(all_setup_intervals):
+            if i < j and m1 != m2:
+                if not (s1_end <= s2_start or s1_start >= s2_end):
+                    overlap_start = max(s1_start, s2_start)
+                    overlap_end = min(s1_end, s2_end)
+                    overlap_duration = overlap_end - overlap_start
+
+                    overlap_regions.append((overlap_start, overlap_end, m1 - 1))
+                    overlap_regions.append((overlap_start, overlap_end, m2 - 1))
+
+                    machine_overlap_counts[f"Machine {m1}"] += 1
+                    machine_overlap_counts[f"Machine {m2}"] += 1
+
+                    machine_overlap_durations[f"Machine {m1}"] += overlap_duration
+                    machine_overlap_durations[f"Machine {m2}"] += overlap_duration
+
+    # 3. Stamping vs Stamping
+    for i, (t1_start, t1_end, m1) in enumerate(all_stamping_intervals):
+        for j, (t2_start, t2_end, m2) in enumerate(all_stamping_intervals):
+            if i < j and m1 != m2:
+                if not (t1_end <= t2_start or t1_start >= t2_end):
+                    overlap_start = max(t1_start, t2_start)
+                    overlap_end = min(t1_end, t2_end)
+                    overlap_duration = overlap_end - overlap_start
+
+                    overlap_regions.append((overlap_start, overlap_end, m1 - 1))
+                    overlap_regions.append((overlap_start, overlap_end, m2 - 1))
+
+                    machine_overlap_counts[f"Machine {m1}"] += 1
+                    machine_overlap_counts[f"Machine {m2}"] += 1
+
+                    machine_overlap_durations[f"Machine {m1}"] += overlap_duration
+                    machine_overlap_durations[f"Machine {m2}"] += overlap_duration
+
+    # Highlight overlaps
     for start, end, machine_idx in overlap_regions:
         ax.barh(y=machine_idx, width=end - start, left=start,
                 height=0.8, color='red', alpha=0.3,
@@ -168,7 +206,7 @@ if st.button("📊 Generate Chart"):
         Patch(facecolor="orange", edgecolor='black', label="Set up"),
         Patch(facecolor="grey", edgecolor='black', label="Weld start"),
         Patch(facecolor="yellow", edgecolor='black', label="Stamping"),
-        Patch(facecolor="lightblue", edgecolor='black', label="Cooling"),
+        Patch(facecolor="blue", edgecolor='black', label="Cooling"),
         Patch(facecolor="red", edgecolor='red', alpha=0.3, label="Overlap")
     ]
     ax.legend(handles=legend_elements, loc="upper right")
@@ -180,14 +218,14 @@ if st.button("📊 Generate Chart"):
     for name, runtime in machine_run_times:
         st.write(f"**{name}**: {runtime:.2f} minutes")
 
-    st.subheader("📊 Overlap Count & Percentage Per Machine")
+    st.subheader("📊 Overlap Report")
     has_overlap = any(count > 0 for count in machine_overlap_counts.values())
     if has_overlap:
-        for (name, runtime) in machine_run_times:
+        for name, runtime in machine_run_times:
             count = machine_overlap_counts[name]
             overlap_time = machine_overlap_durations[name]
-            pct = (overlap_time / runtime * 100) if runtime > 0 else 0
-            st.write(f"**{name}**: {count} overlaps — {overlap_time:.2f} min ({pct:.1f}% of runtime)")
+            percent = (overlap_time / runtime * 100) if runtime > 0 else 0
+            st.write(f"**{name}**: {count} overlaps, {percent:.1f}% of runtime overlapping")
     else:
         st.success("✅ No overlaps detected")
 
@@ -206,4 +244,3 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
-
