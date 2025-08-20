@@ -96,7 +96,7 @@ if st.button("📊 Generate Chart"):
     machine_overlap_counts = {f"Machine {i+1}": 0 for i in range(4)}
 
     step_labels = ["Set up", "Weld start", "Stamping", "Cooling"]
-    step_colors = ["orange", "grey", "yellow", "azure"]
+    step_colors = ["orange", "grey", "yellow", "lightblue"]
 
     for idx, machine in enumerate(machines):
         current_time = machine["start_time"]
@@ -161,7 +161,7 @@ if st.button("📊 Generate Chart"):
         Patch(facecolor="orange", edgecolor='black', label="Set up"),
         Patch(facecolor="grey", edgecolor='black', label="Weld start"),
         Patch(facecolor="yellow", edgecolor='black', label="Stamping"),
-        Patch(facecolor="azure", edgecolor='black', label="Cooling"),
+        Patch(facecolor="lightblue", edgecolor='black', label="Cooling"),
         Patch(facecolor="red", edgecolor='red', alpha=0.3, label="Overlap")
     ]
     ax.legend(handles=legend_elements, loc="upper right")
@@ -196,6 +196,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
