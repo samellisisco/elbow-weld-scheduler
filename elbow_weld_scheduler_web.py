@@ -129,6 +129,25 @@ if st.button("📊 Generate Chart"):
                         "Duration": round(duration, 2)
                     })
                     current_time = end
+    machine_overlap_durations = {f"Machine {i+1}": 0.0 for i in range(4)}  # NEW
+
+    # Overlap detection
+    for s_start, s_end, s_machine in all_setup_intervals:
+        for t_start, t_end, t_machine in all_stamping_intervals:
+            if s_machine != t_machine:
+                if not (s_end <= t_start or s_start >= t_end):
+                    overlap_start = max(s_start, t_start)
+                    overlap_end = min(s_end, t_end)
+                    overlap_duration = overlap_end - overlap_start
+
+                    overlap_regions.append((overlap_start, overlap_end, s_machine - 1))
+                    overlap_regions.append((overlap_start, overlap_end, t_machine - 1))
+
+                    machine_overlap_counts[f"Machine {s_machine}"] += 1
+                    machine_overlap_counts[f"Machine {t_machine}"] += 1
+
+                    machine_overlap_durations[f"Machine {s_machine}"] += overlap_duration
+                    machine_overlap_durations[f"Machine {t_machine}"] += overlap_duration
 
         machine_run_times.append((f"Machine {idx + 1}", round(current_time - machine_start_time, 2)))
 
@@ -180,6 +199,17 @@ if st.button("📊 Generate Chart"):
             st.write(f"**{machine}**: {count} overlaps detected")
     else:
         st.success("✅ No overlaps detected")
+   
+    st.subheader("📊 Overlap Count & Percentage Per Machine")
+    has_overlap = any(count > 0 for count in machine_overlap_counts.values())
+    if has_overlap:
+        for (name, runtime) in machine_run_times:
+            count = machine_overlap_counts[name]
+            overlap_time = machine_overlap_durations[name]
+            pct = (overlap_time / runtime * 100) if runtime > 0 else 0
+            st.write(f"**{name}**: {count} overlaps detected — {pct:.1f}% of runtime")
+    else:
+        st.success("✅ No overlaps detected")
 
     # Downloads
     df = pd.DataFrame(timeline_records)
@@ -196,6 +226,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
