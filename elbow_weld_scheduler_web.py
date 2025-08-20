@@ -53,12 +53,17 @@ st.header("🛠️ Machine Configurations")
 machines = []
 
 for i in range(1, 5):
-    with st.expander(f"Machine {i} ⚡"):
+    with st.expander(f"Machine {i}"):
         c1, c2, c3 = st.columns(3)
         with c1:
             start_time = st.number_input(f"Start time (min)", min_value=0, value=(i - 1) * 10, key=f"start_{i}")
         with c2:
-            number_of_welds = st.slider(f"Welds per elbow", min_value=1, max_value=4, value=2, key=f"welds_{i}")
+    number_of_welds = st.selectbox(
+        "Welds per elbow", 
+        options=[1, 2, 3, 4], 
+        index=1,   # default to 2
+        key=f"welds_{i}"
+    )
         with c3:
             quantity = st.number_input(f"Number of elbows", min_value=1, value=3, key=f"qty_{i}")
 
@@ -96,7 +101,7 @@ if st.button("📊 Generate Chart"):
     machine_overlap_counts = {f"Machine {i+1}": 0 for i in range(4)}
 
     step_labels = ["Set up", "Weld start", "Stamping", "Cooling"]
-    step_colors = ["orange", "grey", "yellow", "blue"]
+    step_colors = ["orange", "grey", "yellow", "azure"]
 
     for idx, machine in enumerate(machines):
         current_time = machine["start_time"]
@@ -161,7 +166,7 @@ if st.button("📊 Generate Chart"):
         Patch(facecolor="orange", edgecolor='black', label="Set up"),
         Patch(facecolor="grey", edgecolor='black', label="Weld start"),
         Patch(facecolor="yellow", edgecolor='black', label="Stamping"),
-        Patch(facecolor="blue", edgecolor='black', label="Cooling"),
+        Patch(facecolor="azure", edgecolor='black', label="Cooling"),
         Patch(facecolor="red", edgecolor='red', alpha=0.3, label="Overlap")
     ]
     ax.legend(handles=legend_elements, loc="upper right")
@@ -196,3 +201,4 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
