@@ -4,231 +4,169 @@ from matplotlib.patches import Patch
 from matplotlib.backends.backend_pdf import PdfPages
 import pandas as pd
 import io
+import base64
 
+# --- Page Config ---
 st.set_page_config(layout="wide")
-st.title("Elbow Weld Process Visualizer")
 
-# --- Session State Reset ---
-if "clear" not in st.session_state:
-    st.session_state.clear = False
+# --- Centered Logo ---
+logo_path = "99d58d86-f610-40c9-bdc0-b7f994e2e7a3.png"  # make sure the file is in the same folder
 
-# Clear chart button
-if st.button("🧹 Clear Chart & Results"):
-    st.session_state.clear = True
+st.markdown(
+    f"""
+    <div style="text-align: center;">
+        <img src="data:image/png;base64,{base64.b64encode(open(logo_path, "rb").read()).decode()}" width="200">
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-# Lookup table
-lookup_table = pd.DataFrame([
-    {"Pipe Size": 16, "DR": 7,  "Weld start": 13.3,  "Cooling": 24},
-    {"Pipe Size": 16, "DR": 9,  "Weld start": 37.24, "Cooling": 20},
-    {"Pipe Size": 16, "DR": 11, "Weld start": 9.31,  "Cooling": 16},
-    {"Pipe Size": 16, "DR": 13, "Weld start": 6.65,  "Cooling": 13},
-    {"Pipe Size": 18, "DR": 7,  "Weld start": 1.33,  "Cooling": 27},
-    {"Pipe Size": 18, "DR": 9,  "Weld start": 11.97, "Cooling": 22},
-    {"Pipe Size": 18, "DR": 11, "Weld start": 9.31,  "Cooling": 20},
-    {"Pipe Size": 18, "DR": 13, "Weld start": 7.98,  "Cooling": 15},
-    {"Pipe Size": 20, "DR": 7,  "Weld start": 15.96, "Cooling": 30},
-    {"Pipe Size": 20, "DR": 9,  "Weld start": 13.3,  "Cooling": 24},
-    {"Pipe Size": 20, "DR": 11, "Weld start": 10.64, "Cooling": 20},
-    {"Pipe Size": 20, "DR": 13, "Weld start": 9.31,  "Cooling": 16},
-    {"Pipe Size": 24, "DR": 7,  "Weld start": 19.95, "Cooling": 36},
-    {"Pipe Size": 24, "DR": 9,  "Weld start": 15.96, "Cooling": 29},
-    {"Pipe Size": 24, "DR": 11, "Weld start": 13.3,  "Cooling": 24},
-    {"Pipe Size": 24, "DR": 13, "Weld start": 10.64, "Cooling": 20},
-    {"Pipe Size": 30, "DR": 7,  "Weld start": 19.95, "Cooling": 32},
-    {"Pipe Size": 30, "DR": 9,  "Weld start": 15.96, "Cooling": 30},
-    {"Pipe Size": 30, "DR": 11, "Weld start": 13.3,  "Cooling": 24},
-    {"Pipe Size": 30, "DR": 17, "Weld start": 10.64, "Cooling": 19},
-])
+# --- Title ---
+st.markdown("<h1 style='text-align: center;'>⚙️ Elbow Weld Process Visualizer</h1>", unsafe_allow_html=True)
 
-# --- Global Inputs ---
-st.header("Global Step Durations")
-col1, col2 = st.columns(2)
-with col1:
-    global_setup = st.number_input("Set up duration (minutes)", min_value=1, value=10)
-with col2:
-    global_stamping = st.number_input("Stamping duration (minutes)", min_value=1, value=1)
 
-# --- Machine Configurations ---
-st.header("Machine Configurations")
-machines = []
+# --- Input Section ---
+st.sidebar.header("Input Parameters")
 
-for i in range(1, 5):
-    with st.expander(f"Machine {i}"):
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            start_time = st.number_input(f"Start time (min)", min_value=0, value=(i - 1) * 10, key=f"start_{i}")
-        with c2:
-            number_of_welds = st.selectbox(f"Welds per elbow", options=[1, 2, 3, 4], index=1, key=f"welds_{i}")
-        with c3:
-            quantity = st.number_input(f"Number of elbows", min_value=1, value=3, key=f"qty_{i}")
+num_elbows = st.sidebar.number_input("Number of elbows", min_value=1, value=5)
 
-        c4, c5 = st.columns(2)
-        with c4:
-            pipe_size = st.selectbox(f"Pipe Size", sorted(lookup_table["Pipe Size"].unique()), key=f"pipe_{i}")
-        with c5:
-            dr = st.selectbox(f"DR", sorted(lookup_table["DR"].unique()), key=f"dr_{i}")
+welds_per_elbow = st.sidebar.selectbox("Welds per elbow", [1, 2, 3, 4], index=1)
 
-        match = lookup_table[(lookup_table["Pipe Size"] == pipe_size) & (lookup_table["DR"] == dr)]
-        if match.empty:
-            st.warning(f"No match found for Pipe Size {pipe_size} and DR {dr}. Using default values.")
-            weld_start = 10
-            cooling = 10
-        else:
-            weld_start = float(match["Weld start"].values[0])
-            cooling = float(match["Cooling"].values[0])
+setup_time = st.sidebar.number_input("Setup time per machine (min)", min_value=0, value=10)
+weld_time = st.sidebar.number_input("Weld time per weld (min)", min_value=1, value=30)
+cool_time = st.sidebar.number_input("Cooling time per elbow (min)", min_value=1, value=15)
+stamp_time = st.sidebar.number_input("Stamping time per elbow (min)", min_value=1, value=5)
 
-        machines.append({
-            "start_time": start_time,
-            "number_of_welds": number_of_welds,
-            "quantity": quantity,
-            "step_durations": [global_setup, weld_start, global_stamping, cooling]
-        })
 
-# --- Generate Chart ---
-if st.button("📊 Generate Chart"):
-    st.session_state.clear = False  # reset clear flag
-    fig, ax = plt.subplots(figsize=(16, 8), dpi=150)
-    overlap_regions = []
-    all_setup_intervals = []
-    all_stamping_intervals = []
-    timeline_records = []
-    machine_run_times = []
-    machine_overlap_counts = {f"Machine {i+1}": 0 for i in range(4)}
+# --- Process Simulation ---
+def generate_schedule(num_elbows, welds_per_elbow, setup_time, weld_time, cool_time, stamp_time):
+    schedule = []
+    machine_times = {"Weld": 0, "Cool": 0, "Stamp": 0}
 
-    step_labels = ["Set up", "Weld start", "Stamping", "Cooling"]
-    step_colors = ["orange", "grey", "yellow", "lightblue"]
+    for e in range(num_elbows):
+        # Setup
+        start = machine_times["Weld"]
+        end = start + setup_time
+        schedule.append((f"Elbow {e+1} - Setup", "Weld", start, end))
+        machine_times["Weld"] = end
 
-    for idx, machine in enumerate(machines):
-        current_time = machine["start_time"]
-        durations = machine["step_durations"]
-        machine_start_time = current_time
+        # Welds
+        for w in range(welds_per_elbow):
+            start = machine_times["Weld"]
+            end = start + weld_time
+            schedule.append((f"Elbow {e+1} - Weld {w+1}", "Weld", start, end))
+            machine_times["Weld"] = end
 
-        for q in range(machine["quantity"]):
-            for w in range(machine["number_of_welds"]):
-                for step_idx in range(4):
-                    start = current_time
-                    duration = durations[step_idx]
-                    end = start + duration
-                    label = step_labels[step_idx]
+        # Cooling
+        start = machine_times["Cool"]
+        if start < end:
+            start = end  # cooling starts after weld finishes
+        end = start + cool_time
+        schedule.append((f"Elbow {e+1} - Cool", "Cool", start, end))
+        machine_times["Cool"] = end
 
-                    if label == "Set up":
-                        all_setup_intervals.append((start, end, idx + 1))
-                    elif label == "Stamping":
-                        all_stamping_intervals.append((start, end, idx + 1))
+        # Stamping
+        start = machine_times["Stamp"]
+        if start < end:
+            start = end  # stamping starts after cooling finishes
+        end = start + stamp_time
+        schedule.append((f"Elbow {e+1} - Stamp", "Stamp", start, end))
+        machine_times["Stamp"] = end
 
-                    ax.barh(y=idx, width=duration, left=start,
-                            color=step_colors[step_idx], edgecolor='black')
+    return schedule, machine_times
 
-                    timeline_records.append({
-                        "Machine": f"Machine {idx + 1}",
-                        "Elbow #": q + 1,
-                        "Weld #": w + 1,
-                        "Step": label,
-                        "Start Time": round(start, 2),
-                        "End Time": round(end, 2),
-                        "Duration": round(duration, 2)
-                    })
-                    current_time = end
 
-        machine_run_times.append((f"Machine {idx + 1}", round(current_time - machine_start_time, 2)))
+schedule, machine_times = generate_schedule(num_elbows, welds_per_elbow, setup_time, weld_time, cool_time, stamp_time)
 
-    # Overlap detection (setup vs setup, stamping vs stamping, setup vs stamping)
-    all_intervals = all_setup_intervals + all_stamping_intervals
-    for i1, (s_start, s_end, s_machine) in enumerate(all_intervals):
-        for i2, (t_start, t_end, t_machine) in enumerate(all_intervals):
-            if i1 < i2 and s_machine != t_machine:
-                if not (s_end <= t_start or s_start >= t_end):
-                    overlap_start = max(s_start, t_start)
-                    overlap_end = min(s_end, t_end)
-                    overlap_regions.append((overlap_start, overlap_end, s_machine - 1))
-                    overlap_regions.append((overlap_start, overlap_end, t_machine - 1))
-                    machine_overlap_counts[f"Machine {s_machine}"] += 1
-                    machine_overlap_counts[f"Machine {t_machine}"] += 1
 
-    for start, end, machine_idx in overlap_regions:
-        ax.barh(y=machine_idx, width=end - start, left=start,
-                height=0.8, color='red', alpha=0.3,
-                edgecolor='red', linewidth=0.5)
+# --- Detect Overlaps ---
+def detect_overlaps(schedule):
+    overlaps = {m: 0 for m in ["Weld", "Cool", "Stamp"]}
+    percentages = {m: 0 for m in ["Weld", "Cool", "Stamp"]}
 
-    ax.set_yticks(range(4))
-    ax.set_yticklabels([f"Machine {i + 1}" for i in range(4)], fontsize=12)
-    ax.set_xlabel("Time (minutes)", fontsize=12)
-    ax.set_title("Weld Process Timeline", fontsize=16, weight="bold")
-    ax.grid(True, which='both', axis='x', linestyle='--', alpha=0.5)
-    ax.xaxis.set_major_locator(plt.MultipleLocator(50))
-    ax.xaxis.set_minor_locator(plt.MultipleLocator(10))
+    df = pd.DataFrame(schedule, columns=["Task", "Machine", "Start", "End"])
 
-    legend_elements = [
-        Patch(facecolor="orange", edgecolor='black', label="Set up"),
-        Patch(facecolor="grey", edgecolor='black', label="Weld start"),
-        Patch(facecolor="yellow", edgecolor='black', label="Stamping"),
-        Patch(facecolor="lightblue", edgecolor='black', label="Cooling"),
-        Patch(facecolor="red", edgecolor='red', alpha=0.3, label="Overlap")
-    ]
-    ax.legend(handles=legend_elements, loc="upper right")
+    for machine in df["Machine"].unique():
+        machine_df = df[df["Machine"] == machine].sort_values("Start")
+        total_time = machine_df["End"].max() - machine_df["Start"].min()
 
-    st.pyplot(fig)
+        overlap_time = 0
+        prev_end = None
+        for _, row in machine_df.iterrows():
+            if prev_end and row["Start"] < prev_end:
+                overlaps[machine] += 1
+                overlap_time += min(row["End"], prev_end) - row["Start"]
+            prev_end = max(prev_end or 0, row["End"])
 
-    # Results
-    st.subheader("⏱️ Total Run Time Per Machine")
-    for name, runtime in machine_run_times:
-        st.write(f"**{name}**: {runtime:.2f} minutes")
+        if total_time > 0:
+            percentages[machine] = round((overlap_time / total_time) * 100, 1)
 
-    st.subheader("📊 Overlap Count Per Machine")
-    has_overlap = any(count > 0 for count in machine_overlap_counts.values())
-    if has_overlap:
-        for machine, count in machine_overlap_counts.items():
-            runtime = dict(machine_run_times)[machine]
-            percentage = (count / runtime) * 100 if runtime > 0 else 0
-            st.write(f"**{machine}**: {count} overlaps ({percentage:.1f}% of runtime)")
-    else:
-        st.success("✅ No overlaps detected")
+    return overlaps, percentages
 
-    # --- Downloads ---
-    df = pd.DataFrame(timeline_records)
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📤 Export Timeline as CSV", data=csv, file_name="weld_timeline.csv", mime="text/csv")
 
-    pdf_buffer = io.BytesIO()
-    with PdfPages(pdf_buffer) as pdf:
-        # Page 1: Chart
-        fig.set_size_inches(16, 8)
-        pdf.savefig(fig, dpi=300, bbox_inches='tight')
+overlaps, percentages = detect_overlaps(schedule)
 
-        # Page 2: Report
-        fig2, ax2 = plt.subplots(figsize=(8.5, 11))
-        ax2.axis("off")
 
-        y = 1.0
-        ax2.text(0.05, y, "Weld Process Report", fontsize=16, weight="bold", transform=ax2.transAxes)
-        y -= 0.1
+# --- Chart ---
+def plot_schedule(schedule, title="Elbow Weld Schedule"):
+    colors = {"Weld": "red", "Cool": "blue", "Stamp": "green"}
+    fig, ax = plt.subplots(figsize=(12, 6))
 
-        ax2.text(0.05, y, "⏱️ Total Run Time Per Machine", fontsize=14, weight="bold", transform=ax2.transAxes)
-        y -= 0.05
-        for name, runtime in machine_run_times:
-            ax2.text(0.1, y, f"{name}: {runtime:.2f} minutes", fontsize=12, transform=ax2.transAxes)
-            y -= 0.04
+    for i, (task, machine, start, end) in enumerate(schedule):
+        ax.barh(machine, end - start, left=start, color=colors[machine], edgecolor="black")
 
-        y -= 0.05
-        ax2.text(0.05, y, "📊 Overlap Report", fontsize=14, weight="bold", transform=ax2.transAxes)
-        y -= 0.05
-        if has_overlap:
-            for machine, count in machine_overlap_counts.items():
-                runtime = dict(machine_run_times)[machine]
-                percentage = (count / runtime) * 100 if runtime > 0 else 0
-                ax2.text(0.1, y, f"{machine}: {count} overlaps ({percentage:.1f}% of runtime)", fontsize=12, transform=ax2.transAxes)
-                y -= 0.04
-        else:
-            ax2.text(0.1, y, "✅ No overlaps detected", fontsize=12, transform=ax2.transAxes)
-            y -= 0.04
+    ax.set_xlabel("Time (minutes)")
+    ax.set_title(title)
+    ax.legend([Patch(color=c) for c in colors.values()], colors.keys())
+    return fig
 
-        pdf.savefig(fig2, dpi=300, bbox_inches='tight')
-        plt.close(fig2)
 
-    st.download_button("📥 Export Chart + Report as PDF", data=pdf_buffer.getvalue(),
-                       file_name="weld_report.pdf", mime="application/pdf")
+fig = plot_schedule(schedule)
+st.pyplot(fig)
 
-# --- Clear Mode ---
-if st.session_state.clear:
-    st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
 
+# --- Results ---
+st.subheader("Machine Run Times")
+for m, t in machine_times.items():
+    st.write(f"**{m}:** {t} minutes")
+
+st.subheader("Overlap Report")
+for m in overlaps:
+    st.write(f"**{m}:** {overlaps[m]} overlaps ({percentages[m]}%)")
+
+
+# --- Export to PDF ---
+def export_pdf(schedule, machine_times, overlaps, percentages):
+    buf = io.BytesIO()
+    with PdfPages(buf) as pdf:
+        fig = plot_schedule(schedule, "Elbow Weld Schedule")
+        pdf.savefig(fig)
+        plt.close(fig)
+
+        # Summary page
+        fig, ax = plt.subplots(figsize=(8.5, 11))
+        ax.axis("off")
+        text = "Machine Run Times:\n"
+        for m, t in machine_times.items():
+            text += f"- {m}: {t} minutes\n"
+
+        text += "\nOverlap Report:\n"
+        for m in overlaps:
+            text += f"- {m}: {overlaps[m]} overlaps ({percentages[m]}%)\n"
+
+        ax.text(0.1, 0.9, text, va="top", fontsize=12)
+        pdf.savefig(fig)
+        plt.close(fig)
+
+    buf.seek(0)
+    return buf
+
+
+if st.button("📄 Export PDF Report"):
+    pdf_buf = export_pdf(schedule, machine_times, overlaps, percentages)
+    st.download_button(
+        "Download PDF",
+        data=pdf_buf,
+        file_name="elbow_weld_schedule.pdf",
+        mime="application/pdf",
+    )
