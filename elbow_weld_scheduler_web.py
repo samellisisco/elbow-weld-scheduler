@@ -4,30 +4,7 @@ from matplotlib.patches import Patch
 from matplotlib.backends.backend_pdf import PdfPages
 import pandas as pd
 import io
-import os
-import base64
 
-# --------------------
-# Logo at the top (centered)
-# --------------------
-logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
-
-if os.path.exists(logo_path):
-    with open(logo_path, "rb") as f:
-        logo_base64 = base64.b64encode(f.read()).decode()
-
-    st.markdown(
-        f"""
-        <div style="text-align: center; margin-bottom: 20px;">
-            <img src="data:image/png;base64,{logo_base64}" width="200">
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-# --------------------
-# Page Title
-# --------------------
 st.set_page_config(layout="wide")
 st.title("⚙️ Elbow Weld Process Visualizer")
 
@@ -81,7 +58,7 @@ for i in range(1, 5):
         with c1:
             start_time = st.number_input(f"Start time (min)", min_value=0, value=(i - 1) * 10, key=f"start_{i}")
         with c2:
-            number_of_welds = st.selectbox(f"Welds per elbow", [1, 2, 3, 4], index=1, key=f"welds_{i}")
+            number_of_welds = st.selectbox(f"Welds per elbow", options=[1, 2, 3, 4], index=1, key=f"welds_{i}")
         with c3:
             quantity = st.number_input(f"Number of elbows", min_value=1, value=3, key=f"qty_{i}")
 
@@ -112,11 +89,11 @@ if st.button("📊 Generate Chart"):
     st.session_state.clear = False  # reset clear flag
     fig, ax = plt.subplots(figsize=(16, 8), dpi=150)
     overlap_regions = []
-    all_intervals = []
+    all_setup_intervals = []
+    all_stamping_intervals = []
     timeline_records = []
     machine_run_times = []
     machine_overlap_counts = {f"Machine {i+1}": 0 for i in range(4)}
-    machine_overlap_durations = {f"Machine {i+1}": 0 for i in range(4)}
 
     step_labels = ["Set up", "Weld start", "Stamping", "Cooling"]
     step_colors = ["orange", "grey", "yellow", "blue"]
@@ -134,7 +111,10 @@ if st.button("📊 Generate Chart"):
                     end = start + duration
                     label = step_labels[step_idx]
 
-                    all_intervals.append((start, end, idx + 1, label))
+                    if label == "Set up":
+                        all_setup_intervals.append((start, end, idx + 1))
+                    elif label == "Stamping":
+                        all_stamping_intervals.append((start, end, idx + 1))
 
                     ax.barh(y=idx, width=duration, left=start,
                             color=step_colors[step_idx], edgecolor='black')
@@ -152,20 +132,18 @@ if st.button("📊 Generate Chart"):
 
         machine_run_times.append((f"Machine {idx + 1}", round(current_time - machine_start_time, 2)))
 
-    # Overlap detection (any step vs any step, across machines)
-    for i, (s_start, s_end, s_machine, s_label) in enumerate(all_intervals):
-        for j, (t_start, t_end, t_machine, t_label) in enumerate(all_intervals):
-            if i < j and s_machine != t_machine:
+    # Overlap detection (setup vs setup, stamping vs stamping, setup vs stamping)
+    all_intervals = all_setup_intervals + all_stamping_intervals
+    for i1, (s_start, s_end, s_machine) in enumerate(all_intervals):
+        for i2, (t_start, t_end, t_machine) in enumerate(all_intervals):
+            if i1 < i2 and s_machine != t_machine:
                 if not (s_end <= t_start or s_start >= t_end):
                     overlap_start = max(s_start, t_start)
                     overlap_end = min(s_end, t_end)
                     overlap_regions.append((overlap_start, overlap_end, s_machine - 1))
                     overlap_regions.append((overlap_start, overlap_end, t_machine - 1))
-                    duration = overlap_end - overlap_start
                     machine_overlap_counts[f"Machine {s_machine}"] += 1
                     machine_overlap_counts[f"Machine {t_machine}"] += 1
-                    machine_overlap_durations[f"Machine {s_machine}"] += duration
-                    machine_overlap_durations[f"Machine {t_machine}"] += duration
 
     for start, end, machine_idx in overlap_regions:
         ax.barh(y=machine_idx, width=end - start, left=start,
@@ -196,57 +174,56 @@ if st.button("📊 Generate Chart"):
     for name, runtime in machine_run_times:
         st.write(f"**{name}**: {runtime:.2f} minutes")
 
-    st.subheader("📊 Overlap Report Per Machine")
+    st.subheader("📊 Overlap Count Per Machine")
     has_overlap = any(count > 0 for count in machine_overlap_counts.values())
     if has_overlap:
-        for name, runtime in machine_run_times:
-            overlaps = machine_overlap_counts[name]
-            overlap_time = machine_overlap_durations[name]
-            percent = (overlap_time / runtime * 100) if runtime > 0 else 0
-            st.write(f"**{name}**: {overlaps} overlaps detected ({percent:.1f}% of runtime)")
+        for machine, count in machine_overlap_counts.items():
+            runtime = dict(machine_run_times)[machine]
+            percentage = (count / runtime) * 100 if runtime > 0 else 0
+            st.write(f"**{machine}**: {count} overlaps ({percentage:.1f}% of runtime)")
     else:
         st.success("✅ No overlaps detected")
 
-    # Downloads
+    # --- Downloads ---
     df = pd.DataFrame(timeline_records)
     csv = df.to_csv(index=False).encode("utf-8")
     st.download_button("📤 Export Timeline as CSV", data=csv, file_name="weld_timeline.csv", mime="text/csv")
 
     pdf_buffer = io.BytesIO()
     with PdfPages(pdf_buffer) as pdf:
+        # Page 1: Chart
         fig.set_size_inches(16, 8)
         pdf.savefig(fig, dpi=300, bbox_inches='tight')
 
-        # Add text summary page
-        from reportlab.lib.pagesizes import letter
-        from reportlab.pdfgen import canvas
+        # Page 2: Report
+        fig2, ax2 = plt.subplots(figsize=(8.5, 11))
+        ax2.axis("off")
 
-        summary_buffer = io.BytesIO()
-        c = canvas.Canvas(summary_buffer, pagesize=letter)
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(50, 750, "Elbow Weld Scheduler Report")
+        y = 1.0
+        ax2.text(0.05, y, "Weld Process Report", fontsize=16, weight="bold", transform=ax2.transAxes)
+        y -= 0.1
 
-        c.setFont("Helvetica", 12)
-        c.drawString(50, 720, "Total Run Time Per Machine:")
-        y = 700
+        ax2.text(0.05, y, "⏱️ Total Run Time Per Machine", fontsize=14, weight="bold", transform=ax2.transAxes)
+        y -= 0.05
         for name, runtime in machine_run_times:
-            c.drawString(70, y, f"{name}: {runtime:.2f} minutes")
-            y -= 20
+            ax2.text(0.1, y, f"{name}: {runtime:.2f} minutes", fontsize=12, transform=ax2.transAxes)
+            y -= 0.04
 
-        c.drawString(50, y - 10, "Overlap Report Per Machine:")
-        y -= 30
+        y -= 0.05
+        ax2.text(0.05, y, "📊 Overlap Report", fontsize=14, weight="bold", transform=ax2.transAxes)
+        y -= 0.05
         if has_overlap:
-            for name, runtime in machine_run_times:
-                overlaps = machine_overlap_counts[name]
-                overlap_time = machine_overlap_durations[name]
-                percent = (overlap_time / runtime * 100) if runtime > 0 else 0
-                c.drawString(70, y, f"{name}: {overlaps} overlaps ({percent:.1f}% of runtime)")
-                y -= 20
+            for machine, count in machine_overlap_counts.items():
+                runtime = dict(machine_run_times)[machine]
+                percentage = (count / runtime) * 100 if runtime > 0 else 0
+                ax2.text(0.1, y, f"{machine}: {count} overlaps ({percentage:.1f}% of runtime)", fontsize=12, transform=ax2.transAxes)
+                y -= 0.04
         else:
-            c.drawString(70, y, "No overlaps detected")
+            ax2.text(0.1, y, "✅ No overlaps detected", fontsize=12, transform=ax2.transAxes)
+            y -= 0.04
 
-        c.save()
-        pdf_buffer.write(summary_buffer.getvalue())
+        pdf.savefig(fig2, dpi=300, bbox_inches='tight')
+        plt.close(fig2)
 
     st.download_button("📥 Export Chart + Report as PDF", data=pdf_buffer.getvalue(),
                        file_name="weld_report.pdf", mime="application/pdf")
