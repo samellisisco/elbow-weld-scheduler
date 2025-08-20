@@ -6,7 +6,7 @@ import pandas as pd
 import io
 
 st.set_page_config(layout="wide")
-st.title("⚙️ Elbow Weld Process Visualizer")
+st.title("Elbow Weld Process Visualizer")
 
 # --- Session State Reset ---
 if "clear" not in st.session_state:
@@ -41,10 +41,10 @@ lookup_table = pd.DataFrame([
 ])
 
 # --- Global Inputs ---
-st.header("🌍 Global Step Durations")
+st.header("Global Step Durations")
 col1, col2 = st.columns(2)
 with col1:
-    global_setup = st.number_input("Set up duration (minutes)", min_value=1, value=10)
+    global_setup = st.number_input("Weld set up duration (minutes)", min_value=1, value=10)
 with col2:
     global_stamping = st.number_input("Stamping duration (minutes)", min_value=1, value=1)
 
@@ -53,7 +53,7 @@ st.header("🛠️ Machine Configurations")
 machines = []
 
 for i in range(1, 5):
-    with st.expander(f"Machine {i} ⚡"):
+    with st.expander(f"Machine {i}"):
         c1, c2, c3 = st.columns(3)
         with c1:
             start_time = st.number_input(f"Start time (min)", min_value=0, value=(i - 1) * 10, key=f"start_{i}")
@@ -229,18 +229,55 @@ if st.button("📊 Generate Chart"):
     else:
         st.success("✅ No overlaps detected")
 
-    # Downloads
-    df = pd.DataFrame(timeline_records)
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📤 Export Timeline as CSV", data=csv, file_name="weld_timeline.csv", mime="text/csv")
+   # --- Downloads ---
+df = pd.DataFrame(timeline_records)
+csv = df.to_csv(index=False).encode("utf-8")
+st.download_button("📤 Export Timeline as CSV", data=csv, file_name="weld_timeline.csv", mime="text/csv")
 
-    pdf_buffer = io.BytesIO()
-    with PdfPages(pdf_buffer) as pdf:
-        fig.set_size_inches(16, 8)
-        pdf.savefig(fig, dpi=300, bbox_inches='tight')
-    st.download_button("📥 Export Chart as PDF", data=pdf_buffer.getvalue(),
-                       file_name="weld_chart.pdf", mime="application/pdf")
+pdf_buffer = io.BytesIO()
+with PdfPages(pdf_buffer) as pdf:
+    # Page 1: Chart
+    fig.set_size_inches(16, 8)
+    pdf.savefig(fig, dpi=300, bbox_inches='tight')
+    
+    # Page 2: Report (text only)
+    from matplotlib.backends.backend_pdf import PdfPages
+    fig2, ax2 = plt.subplots(figsize=(8.5, 11))  # standard page size
+    ax2.axis("off")
+    
+    y = 1.0
+    ax2.text(0.05, y, "Weld Process Report", fontsize=16, weight="bold", transform=ax2.transAxes)
+    y -= 0.1
+    
+    # Run times
+    ax2.text(0.05, y, "⏱️ Total Run Time Per Machine", fontsize=14, weight="bold", transform=ax2.transAxes)
+    y -= 0.05
+    for name, runtime in machine_run_times:
+        ax2.text(0.1, y, f"{name}: {runtime:.2f} minutes", fontsize=12, transform=ax2.transAxes)
+        y -= 0.04
+    
+    # Overlaps
+    y -= 0.05
+    ax2.text(0.05, y, "📊 Overlap Report", fontsize=14, weight="bold", transform=ax2.transAxes)
+    y -= 0.05
+    if has_overlap:
+        for machine, count in machine_overlap_counts.items():
+            runtime = dict(machine_run_times)[machine]
+            percentage = (count / runtime) * 100 if runtime > 0 else 0
+            ax2.text(0.1, y, f"{machine}: {count} overlaps ({percentage:.1f}% of runtime)", fontsize=12, transform=ax2.transAxes)
+            y -= 0.04
+    else:
+        ax2.text(0.1, y, "✅ No overlaps detected", fontsize=12, transform=ax2.transAxes)
+        y -= 0.04
+
+    pdf.savefig(fig2, dpi=300, bbox_inches='tight')
+    plt.close(fig2)
+
+st.download_button("📥 Export Chart + Report as PDF", data=pdf_buffer.getvalue(),
+                   file_name="weld_report.pdf", mime="application/pdf")
+
 
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
