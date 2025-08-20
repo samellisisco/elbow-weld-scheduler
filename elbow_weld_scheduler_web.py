@@ -58,7 +58,7 @@ for i in range(1, 5):
         with c1:
             start_time = st.number_input(f"Start time (min)", min_value=0, value=(i - 1) * 10, key=f"start_{i}")
         with c2:
-            number_of_welds = st.selectbox(f"Welds per elbow", [1, 2, 3, 4], key=f"welds_{i}")
+            number_of_welds = st.selectbox(f"Welds per elbow", [1, 2, 3, 4], index=1, key=f"welds_{i}")
         with c3:
             quantity = st.number_input(f"Number of elbows", min_value=1, value=3, key=f"qty_{i}")
 
@@ -84,49 +84,6 @@ for i in range(1, 5):
             "step_durations": [global_setup, weld_start, global_stamping, cooling]
         })
 
-# --- Helper Function for Overlap Detection ---
-def detect_overlaps(setup_intervals, stamping_intervals):
-    overlap_regions = []
-    overlap_counts = {f"Machine {i+1}": 0 for i in range(4)}
-
-    # Setup vs Setup
-    for i, (s_start, s_end, s_machine) in enumerate(setup_intervals):
-        for j, (s2_start, s2_end, s2_machine) in enumerate(setup_intervals):
-            if i < j and s_machine != s2_machine:
-                if not (s_end <= s2_start or s_start >= s2_end):
-                    overlap_start = max(s_start, s2_start)
-                    overlap_end = min(s_end, s2_end)
-                    overlap_regions.append((overlap_start, overlap_end, s_machine - 1))
-                    overlap_regions.append((overlap_start, overlap_end, s2_machine - 1))
-                    overlap_counts[f"Machine {s_machine}"] += 1
-                    overlap_counts[f"Machine {s2_machine}"] += 1
-
-    # Setup vs Stamping
-    for s_start, s_end, s_machine in setup_intervals:
-        for t_start, t_end, t_machine in stamping_intervals:
-            if s_machine != t_machine:
-                if not (s_end <= t_start or s_start >= t_end):
-                    overlap_start = max(s_start, t_start)
-                    overlap_end = min(s_end, t_end)
-                    overlap_regions.append((overlap_start, overlap_end, s_machine - 1))
-                    overlap_regions.append((overlap_start, overlap_end, t_machine - 1))
-                    overlap_counts[f"Machine {s_machine}"] += 1
-                    overlap_counts[f"Machine {t_machine}"] += 1
-
-    # Stamping vs Stamping
-    for i, (t_start, t_end, t_machine) in enumerate(stamping_intervals):
-        for j, (t2_start, t2_end, t2_machine) in enumerate(stamping_intervals):
-            if i < j and t_machine != t2_machine:
-                if not (t_end <= t2_start or t_start >= t2_end):
-                    overlap_start = max(t_start, t2_start)
-                    overlap_end = min(t_end, t2_end)
-                    overlap_regions.append((overlap_start, overlap_end, t_machine - 1))
-                    overlap_regions.append((overlap_start, overlap_end, t2_machine - 1))
-                    overlap_counts[f"Machine {t_machine}"] += 1
-                    overlap_counts[f"Machine {t2_machine}"] += 1
-
-    return overlap_regions, overlap_counts
-
 # --- Generate Chart ---
 if st.button("📊 Generate Chart"):
     st.session_state.clear = False  # reset clear flag
@@ -136,11 +93,11 @@ if st.button("📊 Generate Chart"):
     all_stamping_intervals = []
     timeline_records = []
     machine_run_times = []
+    machine_overlap_counts = {f"Machine {i+1}": 0 for i in range(4)}
+    machine_overlap_durations = {f"Machine {i+1}": 0.0 for i in range(4)}
 
     step_labels = ["Set up", "Weld start", "Stamping", "Cooling"]
     step_colors = ["orange", "grey", "yellow", "blue"]
-
-    machine_end_times = []
 
     for idx, machine in enumerate(machines):
         current_time = machine["start_time"]
@@ -175,11 +132,63 @@ if st.button("📊 Generate Chart"):
                     current_time = end
 
         machine_run_times.append((f"Machine {idx + 1}", round(current_time - machine_start_time, 2)))
-        machine_end_times.append(current_time)
 
-    # Overlap detection
-    overlap_regions, machine_overlap_counts = detect_overlaps(all_setup_intervals, all_stamping_intervals)
+    # --- Overlap detection ---
+    # 1. Setup vs Stamping
+    for s_start, s_end, s_machine in all_setup_intervals:
+        for t_start, t_end, t_machine in all_stamping_intervals:
+            if s_machine != t_machine:
+                if not (s_end <= t_start or s_start >= t_end):
+                    overlap_start = max(s_start, t_start)
+                    overlap_end = min(s_end, t_end)
+                    overlap_duration = overlap_end - overlap_start
 
+                    overlap_regions.append((overlap_start, overlap_end, s_machine - 1))
+                    overlap_regions.append((overlap_start, overlap_end, t_machine - 1))
+
+                    machine_overlap_counts[f"Machine {s_machine}"] += 1
+                    machine_overlap_counts[f"Machine {t_machine}"] += 1
+
+                    machine_overlap_durations[f"Machine {s_machine}"] += overlap_duration
+                    machine_overlap_durations[f"Machine {t_machine}"] += overlap_duration
+
+    # 2. Setup vs Setup
+    for i, (s1_start, s1_end, m1) in enumerate(all_setup_intervals):
+        for j, (s2_start, s2_end, m2) in enumerate(all_setup_intervals):
+            if i < j and m1 != m2:
+                if not (s1_end <= s2_start or s1_start >= s2_end):
+                    overlap_start = max(s1_start, s2_start)
+                    overlap_end = min(s1_end, s2_end)
+                    overlap_duration = overlap_end - overlap_start
+
+                    overlap_regions.append((overlap_start, overlap_end, m1 - 1))
+                    overlap_regions.append((overlap_start, overlap_end, m2 - 1))
+
+                    machine_overlap_counts[f"Machine {m1}"] += 1
+                    machine_overlap_counts[f"Machine {m2}"] += 1
+
+                    machine_overlap_durations[f"Machine {m1}"] += overlap_duration
+                    machine_overlap_durations[f"Machine {m2}"] += overlap_duration
+
+    # 3. Stamping vs Stamping
+    for i, (t1_start, t1_end, m1) in enumerate(all_stamping_intervals):
+        for j, (t2_start, t2_end, m2) in enumerate(all_stamping_intervals):
+            if i < j and m1 != m2:
+                if not (t1_end <= t2_start or t1_start >= t2_end):
+                    overlap_start = max(t1_start, t2_start)
+                    overlap_end = min(t1_end, t2_end)
+                    overlap_duration = overlap_end - overlap_start
+
+                    overlap_regions.append((overlap_start, overlap_end, m1 - 1))
+                    overlap_regions.append((overlap_start, overlap_end, m2 - 1))
+
+                    machine_overlap_counts[f"Machine {m1}"] += 1
+                    machine_overlap_counts[f"Machine {m2}"] += 1
+
+                    machine_overlap_durations[f"Machine {m1}"] += overlap_duration
+                    machine_overlap_durations[f"Machine {m2}"] += overlap_duration
+
+    # Highlight overlaps
     for start, end, machine_idx in overlap_regions:
         ax.barh(y=machine_idx, width=end - start, left=start,
                 height=0.8, color='red', alpha=0.3,
@@ -209,84 +218,29 @@ if st.button("📊 Generate Chart"):
     for name, runtime in machine_run_times:
         st.write(f"**{name}**: {runtime:.2f} minutes")
 
-    st.subheader("📊 Overlap Count Per Machine")
+    st.subheader("📊 Overlap Report")
     has_overlap = any(count > 0 for count in machine_overlap_counts.values())
     if has_overlap:
-        for machine, count in machine_overlap_counts.items():
-            runtime = dict(machine_run_times)[machine]
-            percentage = (count / runtime) * 100 if runtime > 0 else 0
-            st.write(f"**{machine}**: {count} overlaps detected ({percentage:.1f}% of runtime)")
+        for name, runtime in machine_run_times:
+            count = machine_overlap_counts[name]
+            overlap_time = machine_overlap_durations[name]
+            percent = (overlap_time / runtime * 100) if runtime > 0 else 0
+            st.write(f"**{name}**: {count} overlaps, {percent:.1f}% of runtime overlapping")
     else:
         st.success("✅ No overlaps detected")
 
-    # --- Smart Suggestions Section ---
-    st.subheader("💡 Smart Suggestions to Reduce Overlaps")
-    suggestions = []
-    optimized_waits = [0, 0, 0, 0]
+    # Downloads
+    df = pd.DataFrame(timeline_records)
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button("📤 Export Timeline as CSV", data=csv, file_name="weld_timeline.csv", mime="text/csv")
 
-    if has_overlap:
-        for idx, count in enumerate(machine_overlap_counts.values()):
-            if count > 0:
-                wait_time = min(10, count * 2)  # heuristic: small delay to minimize overlaps
-                optimized_waits[idx] = wait_time
-                suggestions.append(f"Add **{wait_time} minutes** waiting time after cooling on Machine {idx+1}")
-
-        if suggestions:
-            for s in suggestions:
-                st.write("👉 " + s)
-        else:
-            st.info("No additional waiting time needed.")
-    else:
-        st.info("No overlaps — no waiting time adjustments required.")
-
-    # --- Optimized Chart ---
-    if has_overlap:
-        st.subheader("📊 Optimized Weld Process Timeline")
-        fig2, ax2 = plt.subplots(figsize=(16, 8), dpi=150)
-
-        for idx, machine in enumerate(machines):
-            current_time = machine["start_time"]
-            durations = machine["step_durations"]
-
-            for q in range(machine["quantity"]):
-                for w in range(machine["number_of_welds"]):
-                    for step_idx in range(4):
-                        start = current_time
-                        duration = durations[step_idx]
-                        end = start + duration
-                        label = step_labels[step_idx]
-
-                        ax2.barh(y=idx, width=duration, left=start,
-                                 color=step_colors[step_idx], edgecolor='black')
-                        current_time = end
-
-            # Add waiting time after cooling
-            if optimized_waits[idx] > 0:
-                ax2.barh(y=idx, width=optimized_waits[idx], left=current_time,
-                         color="green", edgecolor="black", hatch="//", alpha=0.6,
-                         label="Waiting time" if idx == 0 else "")
-                current_time += optimized_waits[idx]
-
-        ax2.set_yticks(range(4))
-        ax2.set_yticklabels([f"Machine {i + 1}" for i in range(4)], fontsize=12)
-        ax2.set_xlabel("Time (minutes)", fontsize=12)
-        ax2.set_title("Optimized Weld Process Timeline", fontsize=16, weight="bold")
-        ax2.grid(True, which='both', axis='x', linestyle='--', alpha=0.5)
-        ax2.xaxis.set_major_locator(plt.MultipleLocator(50))
-        ax2.xaxis.set_minor_locator(plt.MultipleLocator(10))
-
-        legend_elements2 = [
-            Patch(facecolor="orange", edgecolor='black', label="Set up"),
-            Patch(facecolor="grey", edgecolor='black', label="Weld start"),
-            Patch(facecolor="yellow", edgecolor='black', label="Stamping"),
-            Patch(facecolor="blue", edgecolor='black', label="Cooling"),
-            Patch(facecolor="green", edgecolor='black', hatch="//", alpha=0.6, label="Waiting time")
-        ]
-        ax2.legend(handles=legend_elements2, loc="upper right")
-        st.pyplot(fig2)
+    pdf_buffer = io.BytesIO()
+    with PdfPages(pdf_buffer) as pdf:
+        fig.set_size_inches(16, 8)
+        pdf.savefig(fig, dpi=300, bbox_inches='tight')
+    st.download_button("📥 Export Chart as PDF", data=pdf_buffer.getvalue(),
+                       file_name="weld_chart.pdf", mime="application/pdf")
 
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
-
-
