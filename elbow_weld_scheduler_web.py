@@ -58,7 +58,7 @@ for i in range(1, 5):
         with c1:
             start_time = st.number_input(f"Start time (min)", min_value=0, value=(i - 1) * 10, key=f"start_{i}")
         with c2:
-            number_of_welds = st.selectbox(f"Welds per elbow", options=[1, 2, 3, 4], index=1,   # default to 2 key=f"welds_{i}")
+            number_of_welds = st.selectbox(f"Welds per elbow", options=[1, 2, 3, 4], index=1, key=f"welds_{i}")
         with c3:
             quantity = st.number_input(f"Number of elbows", min_value=1, value=3, key=f"qty_{i}")
 
@@ -196,6 +196,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
