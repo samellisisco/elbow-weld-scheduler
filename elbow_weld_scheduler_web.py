@@ -6,7 +6,7 @@ import pandas as pd
 import io
 
 st.set_page_config(layout="wide")
-st.title("⚙️ Elbow Weld Process Visualizer")
+st.title("Elbow Weld Process Visualizer")
 
 # --- Session State Reset ---
 if "clear" not in st.session_state:
@@ -41,7 +41,7 @@ lookup_table = pd.DataFrame([
 ])
 
 # --- Global Inputs ---
-st.header("🌍 Global Step Durations")
+st.header("Global Step Durations")
 col1, col2 = st.columns(2)
 with col1:
     global_setup = st.number_input("Set up duration (minutes)", min_value=1, value=10)
@@ -196,6 +196,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
