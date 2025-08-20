@@ -6,7 +6,7 @@ import pandas as pd
 import io
 
 st.set_page_config(layout="wide")
-st.title("⚙️ Elbow Weld Process Visualizer")
+st.title("Elbow Weld Process Visualizer")
 
 # --- Session State Reset ---
 if "clear" not in st.session_state:
@@ -41,10 +41,10 @@ lookup_table = pd.DataFrame([
 ])
 
 # --- Global Inputs ---
-st.header("🌍 Global Step Durations")
+st.header("Global Step Durations")
 col1, col2 = st.columns(2)
 with col1:
-    global_setup = st.number_input("Set up duration (minutes)", min_value=1, value=10)
+    global_setup = st.number_input("Weld set up duration (minutes)", min_value=1, value=10)
 with col2:
     global_stamping = st.number_input("Stamping duration (minutes)", min_value=1, value=1)
 
@@ -53,7 +53,7 @@ st.header("🛠️ Machine Configurations")
 machines = []
 
 for i in range(1, 5):
-    with st.expander(f"Machine {i} ⚡"):
+    with st.expander(f"Machine {i}"):
         c1, c2, c3 = st.columns(3)
         with c1:
             start_time = st.number_input(f"Start time (min)", min_value=0, value=(i - 1) * 10, key=f"start_{i}")
@@ -97,7 +97,7 @@ if st.button("📊 Generate Chart"):
     machine_overlap_durations = {f"Machine {i+1}": 0.0 for i in range(4)}
 
     step_labels = ["Set up", "Weld start", "Stamping", "Cooling"]
-    step_colors = ["orange", "grey", "yellow", "blue"]
+    step_colors = ["orange", "grey", "yellow", "lightblue"]
 
     for idx, machine in enumerate(machines):
         current_time = machine["start_time"]
@@ -168,7 +168,7 @@ if st.button("📊 Generate Chart"):
         Patch(facecolor="orange", edgecolor='black', label="Set up"),
         Patch(facecolor="grey", edgecolor='black', label="Weld start"),
         Patch(facecolor="yellow", edgecolor='black', label="Stamping"),
-        Patch(facecolor="blue", edgecolor='black', label="Cooling"),
+        Patch(facecolor="lightblue", edgecolor='black', label="Cooling"),
         Patch(facecolor="red", edgecolor='red', alpha=0.3, label="Overlap")
     ]
     ax.legend(handles=legend_elements, loc="upper right")
@@ -206,3 +206,4 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
