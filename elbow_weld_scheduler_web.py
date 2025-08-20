@@ -44,7 +44,7 @@ lookup_table = pd.DataFrame([
 st.header("Global Step Durations")
 col1, col2 = st.columns(2)
 with col1:
-    global_setup = st.number_input("Set up duration (minutes)", min_value=1, value=10)
+    global_setup = st.number_input("Weld set up duration (minutes)", min_value=1, value=10)
 with col2:
     global_stamping = st.number_input("Stamping duration (minutes)", min_value=1, value=1)
 
@@ -196,6 +196,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
