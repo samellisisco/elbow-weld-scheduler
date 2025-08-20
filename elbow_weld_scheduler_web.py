@@ -49,7 +49,7 @@ with col2:
     global_stamping = st.number_input("Stamping duration (minutes)", min_value=1, value=1)
 
 # --- Machine Configurations ---
-st.header("🛠️ Machine Configurations")
+st.header("Machine Configurations")
 machines = []
 
 for i in range(1, 5):
@@ -231,3 +231,4 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
