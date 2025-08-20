@@ -27,7 +27,7 @@ if os.path.exists(logo_path):
     )
 
 st.set_page_config(layout="wide")
-st.title("⚙️ Elbow Weld Process Visualizer")
+st.title("Elbow Weld Process Visualizer")
 
 # --- Session State Reset ---
 if "clear" not in st.session_state:
@@ -252,5 +252,6 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
