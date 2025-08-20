@@ -4,6 +4,27 @@ from matplotlib.patches import Patch
 from matplotlib.backends.backend_pdf import PdfPages
 import pandas as pd
 import io
+import streamlit as st
+import os
+import base64
+
+# --------------------
+# Logo at the top (centered)
+# --------------------
+logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
+
+if os.path.exists(logo_path):
+    with open(logo_path, "rb") as f:
+        logo_base64 = base64.b64encode(f.read()).decode()
+
+    st.markdown(
+        f"""
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="data:image/png;base64,{logo_base64}" width="200">
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 st.set_page_config(layout="wide")
 st.title("⚙️ Elbow Weld Process Visualizer")
@@ -231,3 +252,4 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
