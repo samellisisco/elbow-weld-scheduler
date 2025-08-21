@@ -205,6 +205,30 @@ if st.button("📊 Generate Chart"):
     else:
         st.success("✅ No overlaps detected")
 
+    # --- Overlap Type Tracking ---
+    overlap_type_durations = {
+        "Setup vs Setup": 0,
+        "Setup vs Stamping": 0,
+        "Stamping vs Stamping": 0
+    }
+
+    # Re-run detection with type classification
+    for i1, (s_start, s_end, s_machine) in enumerate(all_intervals):
+        s_type = "Setup" if (s_start, s_end, s_machine) in all_setup_intervals else "Stamping"
+        for i2, (t_start, t_end, t_machine) in enumerate(all_intervals):
+            if i1 < i2 and s_machine != t_machine:
+                if not (s_end <= t_start or s_start >= t_end):
+                    overlap_start = max(s_start, t_start)
+                    overlap_end = min(s_end, t_end)
+                    overlap_duration = overlap_end - overlap_start
+
+                    if s_type == "Setup" and (t_start, t_end, t_machine) in all_setup_intervals:
+                        overlap_type_durations["Setup vs Setup"] += overlap_duration
+                    elif s_type == "Stamping" and (t_start, t_end, t_machine) in all_stamping_intervals:
+                        overlap_type_durations["Stamping vs Stamping"] += overlap_duration
+                    else:
+                        overlap_type_durations["Setup vs Stamping"] += overlap_duration
+    
     # --- Summarize Overlap Types ---
     total_runtime_all = sum(runtime for _, runtime in machine_run_times)
     total_overlap_time = sum(overlap_type_durations.values())
@@ -269,6 +293,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
