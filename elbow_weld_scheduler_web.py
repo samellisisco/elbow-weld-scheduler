@@ -245,6 +245,7 @@ if st.button("📊 Generate Chart"):
 
     df_overlap = pd.DataFrame(overlap_table)
     st.table(df_overlap)
+    
 
     # --- Downtime Report ---
     st.subheader("⏳ Downtime Report")
@@ -262,6 +263,7 @@ if st.button("📊 Generate Chart"):
 
     # Build downtime data
     downtime_data = []
+    total_downtime = 0
     for machine, end_time in machine_end_times.items():
         downtime = max_end_time - end_time
         downtime_data.append({
@@ -273,6 +275,7 @@ if st.button("📊 Generate Chart"):
     # Display downtime table
     downtime_df = pd.DataFrame(downtime_data)
     st.table(downtime_df)
+    st.write(f"**Total Downtime (min):** {total_downtime}")
 
     # --- Updated Machine Utilization Grade ---
     # total_overlap_time is already computed earlier in your overlap section
@@ -375,6 +378,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
