@@ -335,6 +335,7 @@ if st.button("📊 Generate Chart"):
     # Track operator availability
     operator_free_time = 0
     adjusted_records = []
+    total_waiting_time = 0  # NEW: track total waiting time
 
     for rec in real_timeline:
         if "setup" in rec["Step"].lower():
@@ -354,6 +355,8 @@ if st.button("📊 Generate Chart"):
                     "Start Time": start,
                     "End Time": start + delay
                 })
+
+                total_waiting_time += delay  # add waiting minutes
 
             # Update operator free time
             operator_free_time = rec["End Time"]
@@ -389,6 +392,9 @@ if st.button("📊 Generate Chart"):
     ax.legend(handles=legend_elements, loc="upper right")
 
     st.pyplot(fig)
+
+    # --- Display total waiting time ---
+    st.write(f"**Total Added Waiting Time (min):** {total_waiting_time}")
     
     # --- Downloads ---
     df = pd.DataFrame(timeline_records)
@@ -453,6 +459,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
