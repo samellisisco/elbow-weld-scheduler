@@ -193,7 +193,7 @@ if st.button("📊 Generate Chart"):
     # Results
     # --- Total Run Time Report ---
     st.subheader("⏱️ Total Run Time Per Machine")
-    runtime_hours = machine_run_time / 60
+    runtime_hours = machine_run_times / 60
     for name, runtime in machine_run_times:
         st.write(f"**{name}**: {runtime:.2f} minutes ({runtime_hours:.2f} hours)")
 
@@ -386,6 +386,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
