@@ -246,6 +246,25 @@ if st.button("📊 Generate Chart"):
     df_overlap = pd.DataFrame(overlap_table)
     st.table(df_overlap)
 
+    # --- Downtime Report ---
+    st.subheader("⏳ Downtime Report")
+
+    # Find maximum weld process time across all machines
+    max_weld_process_time = max(runtime for _, runtime in machine_run_times)
+
+    downtime_data = []
+    for name, runtime in machine_run_times:
+        downtime = max_weld_process_time - runtime
+        downtime_data.append({
+            "Machine": name,
+            "Runtime (min)": runtime,
+            "Downtime (min)": downtime
+        })
+
+    downtime_df = pd.DataFrame(downtime_data)
+
+    st.table(downtime_df)
+
     # --- Machine Utilization Grade ---
     utilization = (1 - (total_overlap_time / total_runtime_all)) * 100 if total_runtime_all > 0 else 0
 
@@ -343,6 +362,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
