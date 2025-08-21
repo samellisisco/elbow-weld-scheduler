@@ -273,6 +273,10 @@ if st.button("📊 Generate Chart"):
     # Display downtime table
     downtime_df = pd.DataFrame(downtime_data)
     st.table(downtime_df)
+
+    # Total downtime across all machines
+    total_downtime = sum(downtime_per_machine.values())
+    st.write(f"**Total Downtime (all machines):** {total_downtime:.2f} minutes")
     
     # --- Updated Machine Utilization Grade ---
     # total_overlap_time is already computed earlier in your overlap section
@@ -375,6 +379,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
