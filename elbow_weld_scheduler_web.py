@@ -194,7 +194,7 @@ if st.button("📊 Generate Chart"):
     st.subheader("⏱️ Total Run Time Per Machine")
     for name, runtime_min in machine_run_times:
         runtime_hr = runtime_min / 60
-        st.write(f"**{name}**: {runtime_min:.2f} minu ({runtime_hr:.2f} hr)")
+        st.write(f"**{name}**: {runtime_min:.2f} min ({runtime_hr:.2f} hr)")
 
     # --- Downtime Report ---
     st.subheader("⏳ Downtime Report")
@@ -228,7 +228,8 @@ if st.button("📊 Generate Chart"):
         st.table(downtime_df)
 
         # Show total downtime
-        st.write(f"**Total Downtime:** {total_downtime:.2f} mins ({total_downtime:.2f/60} hours)")
+        downtime_hr = total_downtime / 60
+        st.write(f"**Total Downtime:** {total_downtime:.2f} mins ({downtime_hr:.2f} hours)")
         st.write(f"**Maximum Process Time (min):** {max_end_time:.2f}")
     else:
         st.info("No timeline records available to calculate downtime.")
@@ -385,6 +386,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
