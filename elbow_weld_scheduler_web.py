@@ -320,82 +320,6 @@ if st.button("📊 Generate Chart"):
     unsafe_allow_html=True
     )
     
-    # --- Real Production (Operator-Constrained) ---
-    st.subheader("👷 Real Production (1 Operator)")
-
-    # Copy timeline_records so we don't modify original chart
-    real_timeline = timeline_records.copy()
-
-    # Extract only setup steps
-    setup_steps = [rec for rec in real_timeline if "setup" in rec["Step"].lower()]
-
-    # Sort setups by start time
-    setup_steps.sort(key=lambda x: x["Start Time"])
-
-    # Track operator availability
-    operator_free_time = 0
-    adjusted_records = []
-    total_waiting_time = 0  # NEW: track total waiting time
-
-    for rec in real_timeline:
-        if "setup" in rec["Step"].lower():
-            start = rec["Start Time"]
-            end = rec["End Time"]
-
-            # If operator is still busy, delay this setup
-            if start < operator_free_time:
-                delay = operator_free_time - start
-                rec["Start Time"] += delay
-                rec["End Time"] += delay
-
-                # Insert a waiting block just before setup
-                adjusted_records.append({
-                    "Machine": rec["Machine"],
-                    "Step": "Waiting (Operator Busy)",
-                    "Start Time": start,
-                    "End Time": start + delay
-                })
-
-                total_waiting_time += delay  # add waiting minutes
-
-            # Update operator free time
-            operator_free_time = rec["End Time"]
-
-        adjusted_records.append(rec)
-
-    # Convert to DataFrame for plotting
-    real_df = pd.DataFrame(adjusted_records)
-
-    # Define consistent colors
-    colors = {
-        "Setup": "tab:blue",
-        "Stamping": "tab:orange",
-        "Cooling": "tab:green",
-        "Weld": "tab:red",
-        "Waiting (Operator Busy)": "purple"
-    }
-
-    # Plot adjusted timeline with legend
-    fig, ax = plt.subplots(figsize=(10, 5))
-    for _, row in real_df.iterrows():
-        step = row["Step"].lower()
-        ax.barh(row["Machine"], row["End Time"] - row["Start Time"],
-                left=row["Start Time"], color=colors.get(step, "tab:gray"))
-
-    ax.set_xlabel("Time (minutes)")
-    ax.set_ylabel("Machine")
-    ax.set_title("Real Production Timeline (1 Operator, No Setup Overlap)")
-
-    # Build legend
-    from matplotlib.patches import Patch
-    legend_elements = [Patch(facecolor=clr, label=step.capitalize()) for step, clr in colors.items()]
-    ax.legend(handles=legend_elements, loc="upper right")
-
-    st.pyplot(fig)
-
-    # --- Display total waiting time ---
-    st.write(f"**Total Added Waiting Time (min):** {total_waiting_time}")
-    
     # --- Downloads ---
     df = pd.DataFrame(timeline_records)
     csv = df.to_csv(index=False).encode("utf-8")
@@ -459,6 +383,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
