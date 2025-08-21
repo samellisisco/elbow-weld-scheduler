@@ -249,20 +249,27 @@ if st.button("📊 Generate Chart"):
     # --- Downtime Report ---
     st.subheader("⏳ Downtime Report")
 
-    # Find maximum weld process time across all machines
-    max_weld_process_time = max(runtime for _, runtime in machine_run_times)
+    # Calculate weld process time for each machine from timeline records
+    weld_times = {}
+    for machine in df["Machine"].unique():
+        machine_data = df[df["Machine"] == machine]
+        start_time = machine_data["Start Time"].min()
+        end_time = machine_data["End Time"].max()
+        weld_times[machine] = end_time - start_time
+
+    # Find maximum weld process time
+    max_weld_process_time = max(weld_times.values())
 
     downtime_data = []
-    for name, runtime in machine_run_times:
-        downtime = max_weld_process_time - runtime
+    for machine, process_time in weld_times.items():
+        downtime = max_weld_process_time - process_time
         downtime_data.append({
-            "Machine": name,
-            "Runtime (min)": runtime,
+            "Machine": machine,
+            "Weld Process Time (min)": process_time,
             "Downtime (min)": downtime
         })
 
     downtime_df = pd.DataFrame(downtime_data)
-
     st.table(downtime_df)
 
     # --- Machine Utilization Grade ---
@@ -362,6 +369,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
