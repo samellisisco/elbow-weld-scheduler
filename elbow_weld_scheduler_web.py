@@ -285,7 +285,7 @@ if st.button("📊 Generate Chart"):
     # --- Updated Machine Utilization Grade ---
     # total_overlap_time is already computed earlier in your overlap section
     if max_end_time > 0:
-        utilization_percent = (1 - ((max_end_time - total_downtime - total_overlap_time) / max_end_time)) * 100
+        utilization_percent = (((max_end_time*4) - total_downtime - total_overlap_time) / (max_end_time*4)) * 100
     else:
         utilization_percent = 0
 
@@ -371,7 +371,7 @@ if st.button("📊 Generate Chart"):
         y -= 0.05
         ax2.text(0.05, y, "⚙️ Machine Utilization", fontsize=14, weight="bold", transform=ax2.transAxes)
         y -= 0.05
-        ax2.text(0.1, y, f"Utilization: {utilization:.2f}% (Grade {letter_grade})", fontsize=12, color=color, transform=ax2.transAxes)
+        ax2.text(0.1, y, f"Utilization: {utilization_percent:.2f}% (Grade {letter_grade})", fontsize=12, color=color, transform=ax2.transAxes)
         y -= 0.04
 
         pdf.savefig(fig2, dpi=300, bbox_inches='tight')
@@ -383,6 +383,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
