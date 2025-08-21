@@ -301,7 +301,7 @@ if st.button("📊 Generate Chart"):
         letter_grade = "F"
         color = "red"
 
-    st.markdown(f"**Machine Utilization Grade:** {utilization:.2f}%")
+    st.markdown(f"**Machine Utilization Grade:** {utilization_percent:.2f}%")
     st.markdown(
     f"""
     <div style='text-align: center; 
@@ -378,6 +378,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
