@@ -262,6 +262,35 @@ if st.button("📊 Generate Chart"):
             machine_end_times[machine] = end_time
 
     # --- Downtime Calculation ---
+    st.subheader("⏱️ Machine Downtime")
+
+    max_end_time = df["End"].max()
+    downtime_data = []
+
+    if not df.empty:
+        for machine in df["Machine"].unique():
+            machine_end_time = df[df["Machine"] == machine]["End"].max()
+            downtime = max_end_time - machine_end_time
+            downtime_data.append({
+                "Machine": machine,
+                "Final End Time (min)": float(machine_end_time),
+                "Downtime (min)": float(downtime)
+            })
+
+        # Convert to DataFrame
+        downtime_df = pd.DataFrame(downtime_data)
+
+        # Total downtime across all machines
+        total_downtime = downtime_df["Downtime (min)"].sum()
+
+        # Display downtime table
+        st.table(downtime_df)
+        st.write(f"**Total Downtime (min):** {total_downtime:.2f}")
+    else:
+        st.write("No data available to calculate downtime.")
+        total_downtime = 0
+
+    # --- Downtime Calculation ---
     max_end_time = df["End"].max()
     downtime_data = []
 
@@ -386,6 +415,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
