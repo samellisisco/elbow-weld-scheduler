@@ -268,7 +268,7 @@ if st.button("📊 Generate Chart"):
 
     st.markdown(f"**Machine Utilization Grade:** {utilization:.2f}%")
     st.markdown(
-        f"<h2 style='text-align: center; color: {color};'>{letter_grade}</h2>",
+        f"<h2 style='text-align: center; color: {color}; font-size: 80px;'>{letter_grade}</h2>",
         unsafe_allow_html=True
     )
     
@@ -310,6 +310,22 @@ if st.button("📊 Generate Chart"):
             ax2.text(0.1, y, "✅ No overlaps detected", fontsize=12, transform=ax2.transAxes)
             y -= 0.04
 
+        # --- Add Overlap Breakdown by Type ---
+        y -= 0.05
+        ax2.text(0.05, y, "🔎 Overlap Breakdown by Type", fontsize=14, weight="bold", transform=ax2.transAxes)
+        y -= 0.05
+        for o_type, duration in overlap_type_durations.items():
+            percentage = (duration / total_runtime_all) * 100 if total_runtime_all > 0 else 0
+            ax2.text(0.1, y, f"{o_type}: {duration:.2f} min ({percentage:.2f}% of total runtime)", fontsize=12, transform=ax2.transAxes)
+            y -= 0.04
+
+        # --- Add Machine Utilization Grade ---
+        y -= 0.05
+        ax2.text(0.05, y, "⚙️ Machine Utilization", fontsize=14, weight="bold", transform=ax2.transAxes)
+        y -= 0.05
+        ax2.text(0.1, y, f"Utilization: {utilization:.2f}% (Grade {letter_grade})", fontsize=12, color=color, transform=ax2.transAxes)
+        y -= 0.04
+
         pdf.savefig(fig2, dpi=300, bbox_inches='tight')
         plt.close(fig2)
 
@@ -319,6 +335,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
