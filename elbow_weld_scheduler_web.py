@@ -249,24 +249,24 @@ if st.button("📊 Generate Chart"):
     # --- Downtime Report ---
     st.subheader("⏳ Downtime Report")
 
-    # Calculate weld process time for each machine from timeline records
-    weld_times = {}
-    for machine in set([rec["Machine"] for rec in timeline_records]):
-        machine_data = [rec for rec in timeline_records if rec["Machine"] == machine]
-        start_time = min([rec["Start Time"] for rec in machine_data])
-        end_time = max([rec["End Time"] for rec in machine_data])
-        weld_times[machine] = end_time - start_time
+    # Find the maximum end time across all machines
+    max_end_time = max([rec["End Time"] for rec in timeline_records])
 
-    # Find maximum weld process time
-    max_weld_process_time = max(weld_times.values())
+    # Calculate final end time per machine
+    machine_end_times = {}
+    for rec in timeline_records:
+        machine = rec["Machine"]
+        end_time = rec["End Time"]
+        if machine not in machine_end_times or end_time > machine_end_times[machine]:
+            machine_end_times[machine] = end_time
 
     # Build downtime data
     downtime_data = []
-    for machine, process_time in weld_times.items():
-        downtime = max_weld_process_time - process_time
+    for machine, end_time in machine_end_times.items():
+        downtime = max_end_time - end_time
         downtime_data.append({
             "Machine": machine,
-            "Weld Process Time (min)": process_time,
+            "Final End Time (min)": end_time,
             "Downtime (min)": downtime
         })
 
@@ -371,6 +371,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
