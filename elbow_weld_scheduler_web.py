@@ -229,8 +229,9 @@ if st.button("📊 Generate Chart"):
 
         # Show total downtime
         downtime_hr = total_downtime / 60
-        st.write(f"**Total Downtime:** {total_downtime:.2f} mins ({downtime_hr:.2f} hours)")
-        st.write(f"**Maximum Process Time (min):** {max_end_time:.2f}")
+        max_end_time_hr = max_end_time / 60
+        st.write(f"**Total Downtime:** {total_downtime:.2f} mins ({downtime_hr:.2f} hr)")
+        st.write(f"**Maximum Process Time:** {max_end_time:.2f} mins ({max_end_time_hr:.2f} hr)")
     else:
         st.info("No timeline records available to calculate downtime.")
 
@@ -386,6 +387,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
