@@ -205,6 +205,23 @@ if st.button("📊 Generate Chart"):
     else:
         st.success("✅ No overlaps detected")
 
+    # --- Summarize Overlap Types ---
+    total_runtime_all = sum(runtime for _, runtime in machine_run_times)
+    total_overlap_time = sum(overlap_type_durations.values())
+
+    st.subheader("🔎 Overlap Breakdown by Type")
+    overlap_table = []
+    for o_type, duration in overlap_type_durations.items():
+        percentage = (duration / total_runtime_all) * 100 if total_runtime_all > 0 else 0
+        overlap_table.append({
+            "Overlap Type": o_type,
+            "Total Time (min)": round(duration, 2),
+            "% of Total Runtime": f"{percentage:.2f}%"
+        })
+
+    df_overlap = pd.DataFrame(overlap_table)
+    st.table(df_overlap)
+
     # --- Downloads ---
     df = pd.DataFrame(timeline_records)
     csv = df.to_csv(index=False).encode("utf-8")
@@ -252,6 +269,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
