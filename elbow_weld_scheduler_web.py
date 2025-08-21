@@ -268,7 +268,7 @@ if st.button("📊 Generate Chart"):
 
     st.markdown(f"**Machine Utilization Grade:** {utilization:.2f}%")
     st.markdown(
-        f"<h2 style='text-align: center; color: {color}; font-size: 80px;'>{letter_grade}</h2>",
+        f"<h2 style='text-align: center; color: {color}; font-size: 200px;'>{letter_grade}</h2>",
         unsafe_allow_html=True
     )
     
@@ -335,6 +335,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
