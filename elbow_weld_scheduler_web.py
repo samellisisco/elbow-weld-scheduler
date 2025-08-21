@@ -194,7 +194,7 @@ if st.button("📊 Generate Chart"):
     st.subheader("⏱️ Total Run Time Per Machine")
     for name, runtime_min in machine_run_times:
         runtime_hr = runtime_min / 60
-        st.write(f"**{name}**: {runtime:.2f} minutes")
+        st.write(f"**{name}**: {runtime_min:.2f} minu ({runtime_hr:.2f} hr)")
 
     # --- Downtime Report ---
     st.subheader("⏳ Downtime Report")
@@ -385,6 +385,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
