@@ -368,11 +368,11 @@ if st.button("📊 Generate Chart"):
 
     # Define consistent colors
     colors = {
-        "setup": "tab:blue",
-        "stamping": "tab:orange",
-        "cooling": "tab:green",
-        "weld": "tab:red",
-        "waiting (operator busy)": "purple"
+        "Setup": "tab:blue",
+        "Stamping": "tab:orange",
+        "Cooling": "tab:green",
+        "Weld": "tab:red",
+        "Waiting (Operator Busy)": "purple"
     }
 
     # Plot adjusted timeline with legend
@@ -459,6 +459,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
