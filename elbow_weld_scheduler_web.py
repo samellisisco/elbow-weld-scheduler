@@ -274,32 +274,6 @@ if st.button("📊 Generate Chart"):
     downtime_df = pd.DataFrame(downtime_data)
     st.table(downtime_df)
 
-    # --- Calculate Downtime ---
-    max_end_time = max([rec["End Time"] for rec in timeline_records])
-
-    machine_end_times = {}
-    for rec in timeline_records:
-        machine = rec["Machine"]
-        end_time = rec["End Time"]
-        if machine not in machine_end_times or end_time > machine_end_times[machine]:
-            machine_end_times[machine] = end_time
-
-    downtime_data = []
-    total_downtime = 0
-    for machine, end_time in machine_end_times.items():
-        downtime = max_end_time - end_time
-        total_downtime += downtime
-        downtime_data.append({
-            "Machine": machine,
-            "Final End Time (min)": end_time,
-            "Downtime (min)": downtime
-        })
-
-    downtime_df = pd.DataFrame(downtime_data)
-    st.subheader("⏳ Downtime Report")
-    st.table(downtime_df)
-    st.write(f"**Total Downtime (min):** {total_downtime}")
-
     # --- Updated Machine Utilization Grade ---
     # total_overlap_time is already computed earlier in your overlap section
     if max_end_time > 0:
@@ -401,6 +375,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
