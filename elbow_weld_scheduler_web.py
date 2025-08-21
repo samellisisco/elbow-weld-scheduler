@@ -363,31 +363,32 @@ if st.button("📊 Generate Chart"):
     # Convert to DataFrame for plotting
     real_df = pd.DataFrame(adjusted_records)
 
-    # Plot adjusted timeline
-    fig, ax = plt.subplots(figsize=(10, 5))
+    # Define consistent colors
     colors = {
         "setup": "tab:blue",
         "stamping": "tab:orange",
         "cooling": "tab:green",
         "weld": "tab:red",
-        "Waiting (Operator Busy)": "tab:gray"
+        "waiting (operator busy)": "purple"
     }
 
+    # Plot adjusted timeline with legend
+    fig, ax = plt.subplots(figsize=(10, 5))
     for _, row in real_df.iterrows():
+        step = row["Step"].lower()
         ax.barh(row["Machine"], row["End Time"] - row["Start Time"],
-                left=row["Start Time"], color=colors.get(row["Step"].lower(), "tab:purple"))
+                left=row["Start Time"], color=colors.get(step, "tab:gray"))
 
     ax.set_xlabel("Time (minutes)")
     ax.set_ylabel("Machine")
     ax.set_title("Real Production Timeline (1 Operator, No Setup Overlap)")
+
+    # Build legend
+    from matplotlib.patches import Patch
+    legend_elements = [Patch(facecolor=clr, label=step.capitalize()) for step, clr in colors.items()]
+    ax.legend(handles=legend_elements, loc="upper right")
+
     st.pyplot(fig)
-
-    # Show adjusted timeline table
-    st.write("Adjusted Production Schedule (No Setup Overlaps):")
-    st.dataframe(real_df)
-
-
-
     
     # --- Downloads ---
     df = pd.DataFrame(timeline_records)
@@ -452,6 +453,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
