@@ -272,6 +272,8 @@ if st.button("📊 Generate Chart"):
             "Downtime (min)": downtime
         })
 
+    total_downtime = sum(downtime_per_machine.values())
+    
     # Display downtime table
     downtime_df = pd.DataFrame(downtime_data)
     st.table(downtime_df)
@@ -378,6 +380,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
