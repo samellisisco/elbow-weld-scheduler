@@ -246,6 +246,32 @@ if st.button("📊 Generate Chart"):
     df_overlap = pd.DataFrame(overlap_table)
     st.table(df_overlap)
 
+    # --- Machine Utilization Grade ---
+    utilization = (1 - (total_overlap_time / total_runtime_all)) * 100 if total_runtime_all > 0 else 0
+
+    # Determine letter grade + color
+    if utilization >= 90:
+        letter_grade = "A"
+        color = "green"
+    elif utilization >= 80:
+        letter_grade = "B"
+        color = "limegreen"
+    elif utilization >= 70:
+        letter_grade = "C"
+        color = "orange"
+    elif utilization >= 60:
+        letter_grade = "D"
+        color = "orangered"
+    else:
+        letter_grade = "F"
+        color = "red"
+
+    st.markdown(f"**Machine Utilization Grade:** {utilization:.2f}%")
+    st.markdown(
+        f"<h2 style='text-align: center; color: {color};'>{letter_grade}</h2>",
+        unsafe_allow_html=True
+    )
+    
     # --- Downloads ---
     df = pd.DataFrame(timeline_records)
     csv = df.to_csv(index=False).encode("utf-8")
@@ -293,6 +319,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
