@@ -4,6 +4,7 @@ from matplotlib.patches import Patch
 from matplotlib.backends.backend_pdf import PdfPages
 import pandas as pd
 import io
+import streamlit as st
 import os
 import base64
 
@@ -51,160 +52,209 @@ lookup_table = pd.DataFrame([
     {"Pipe Size": 20, "DR": 11, "Weld start": 10.64, "Cooling": 20},
     {"Pipe Size": 20, "DR": 13, "Weld start": 9.31,  "Cooling": 16},
     {"Pipe Size": 24, "DR": 7,  "Weld start": 19.95, "Cooling": 36},
-    {"Pipe Size": 24, "DR": 9,  "Weld start": 16.62, "Cooling": 28},
+    {"Pipe Size": 24, "DR": 9,  "Weld start": 15.96, "Cooling": 29},
     {"Pipe Size": 24, "DR": 11, "Weld start": 13.3,  "Cooling": 24},
     {"Pipe Size": 24, "DR": 13, "Weld start": 10.64, "Cooling": 20},
+    {"Pipe Size": 30, "DR": 7,  "Weld start": 19.95, "Cooling": 32},
+    {"Pipe Size": 30, "DR": 9,  "Weld start": 15.96, "Cooling": 30},
+    {"Pipe Size": 30, "DR": 11, "Weld start": 13.3,  "Cooling": 24},
+    {"Pipe Size": 30, "DR": 17, "Weld start": 10.64, "Cooling": 19},
 ])
 
-# Global step durations
-global_steps = {"Setup": 10, "Stamping": 5}
+# --- Global Inputs ---
+st.header("Global Step Durations")
+col1, col2 = st.columns(2)
+with col1:
+    global_setup = st.number_input("Weld set up duration (minutes)", min_value=1, value=10)
+with col2:
+    global_stamping = st.number_input("Stamping duration (minutes)", min_value=1, value=1)
 
-# User inputs
-st.sidebar.header("Input Parameters")
-pipe_size = st.sidebar.selectbox("Pipe Size", lookup_table["Pipe Size"].unique())
-dr = st.sidebar.selectbox("DR", lookup_table["DR"].unique())
-machines = st.sidebar.number_input("Number of Machines", 1, 10, 3)
-elbows = st.sidebar.number_input("Number of Elbows", 1, 50, 5)
-welds_per_elbow = st.sidebar.selectbox("Welds per Elbow", [2, 4, 6])
+# --- Machine Configurations ---
+st.header("🛠️ Machine Configurations")
+machines = []
 
-# Lookup weld start + cooling
-row = lookup_table[(lookup_table["Pipe Size"] == pipe_size) & (lookup_table["DR"] == dr)]
-if row.empty:
-    st.error("No matching entry found in lookup table.")
-    st.stop()
+for i in range(1, 5):
+    with st.expander(f"Machine {i}"):
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            start_time = st.number_input(f"Start time (min)", min_value=0, value=(i - 1) * global_setup, key=f"start_{i}")
+        with c2:
+            number_of_welds = st.selectbox(f"Welds per elbow", options=[1, 2, 3, 4], index=1, key=f"welds_{i}")
+        with c3:
+            quantity = st.number_input(f"Number of elbows", min_value=1, value=3, key=f"qty_{i}")
 
-weld_start = row["Weld start"].values[0]
-cooling = row["Cooling"].values[0]
+        c4, c5 = st.columns(2)
+        with c4:
+            pipe_size = st.selectbox(f"Pipe Size", sorted(lookup_table["Pipe Size"].unique()), key=f"pipe_{i}")
+        with c5:
+            dr = st.selectbox(f"DR", sorted(lookup_table["DR"].unique()), key=f"dr_{i}")
 
-# Build process schedule
-schedule = []
-for m in range(machines):
-    time = 0
-    for e in range(elbows):
-        for w in range(welds_per_elbow):
-            # Setup
-            schedule.append((f"Machine {m+1}", "Setup", time, time+global_steps["Setup"]))
-            time += global_steps["Setup"]
+        match = lookup_table[(lookup_table["Pipe Size"] == pipe_size) & (lookup_table["DR"] == dr)]
+        if match.empty:
+            st.warning(f"No match found for Pipe Size {pipe_size} and DR {dr}. Using default values.")
+            weld_start = 10
+            cooling = 10
+        else:
+            weld_start = float(match["Weld start"].values[0])
+            cooling = float(match["Cooling"].values[0])
 
-            # Stamping
-            schedule.append((f"Machine {m+1}", "Stamping", time, time+global_steps["Stamping"]))
-            time += global_steps["Stamping"]
+        machines.append({
+            "start_time": start_time,
+            "number_of_welds": number_of_welds,
+            "quantity": quantity,
+            "step_durations": [global_setup, weld_start, global_stamping, cooling]
+        })
 
-            # Weld start
-            schedule.append((f"Machine {m+1}", "Weld start", time, time+weld_start))
-            time += weld_start
+# --- Generate Chart ---
+if st.button("📊 Generate Chart"):
+    st.session_state.clear = False  # reset clear flag
+    fig, ax = plt.subplots(figsize=(16, 8), dpi=150)
+    overlap_regions = []
+    all_setup_intervals = []
+    all_stamping_intervals = []
+    timeline_records = []
+    machine_run_times = []
+    machine_overlap_counts = {f"Machine {i+1}": 0 for i in range(4)}
 
-            # Cooling
-            schedule.append((f"Machine {m+1}", "Cooling", time, time+cooling))
-            time += cooling
+    step_labels = ["Set up", "Weld start", "Stamping", "Cooling"]
+    step_colors = ["orange", "grey", "yellow", "lightblue"]
 
-schedule_df = pd.DataFrame(schedule, columns=["Machine", "Step", "Start", "Finish"])
+    for idx, machine in enumerate(machines):
+        current_time = machine["start_time"]
+        durations = machine["step_durations"]
+        machine_start_time = current_time
 
-# --------------------
-# Plot chart
-# --------------------
-fig, ax = plt.subplots(figsize=(12, 6))
-colors = {"Setup": "lightblue", "Stamping": "orange", "Weld start": "green", "Cooling": "red"}
-for i, row in schedule_df.iterrows():
-    ax.barh(row["Machine"], row["Finish"]-row["Start"], left=row["Start"], color=colors[row["Step"]])
+        for q in range(machine["quantity"]):
+            for w in range(machine["number_of_welds"]):
+                for step_idx in range(4):
+                    start = current_time
+                    duration = durations[step_idx]
+                    end = start + duration
+                    label = step_labels[step_idx]
 
-ax.set_xlabel("Time (minutes)")
-ax.set_ylabel("Machines")
-ax.set_title("Process Schedule")
-ax.legend(handles=[Patch(color=c, label=s) for s,c in colors.items()])
-st.pyplot(fig)
+                    if label == "Set up":
+                        all_setup_intervals.append((start, end, idx + 1))
+                    elif label == "Stamping":
+                        all_stamping_intervals.append((start, end, idx + 1))
 
-# --------------------
-# Overlap detection
-# --------------------
-overlaps = []
-for m1 in range(machines):
-    df1 = schedule_df[schedule_df["Machine"] == f"Machine {m1+1}"]
-    for m2 in range(m1+1, machines):
-        df2 = schedule_df[schedule_df["Machine"] == f"Machine {m2+1}"]
-        for _, r1 in df1.iterrows():
-            for _, r2 in df2.iterrows():
-                overlap_start = max(r1["Start"], r2["Start"])
-                overlap_end = min(r1["Finish"], r2["Finish"])
-                if overlap_start < overlap_end:
-                    overlap_time = overlap_end - overlap_start
-                    # classify overlap type
-                    if r1["Step"] == "Setup" and r2["Step"] == "Setup":
-                        otype = "Setup vs Setup"
-                    elif r1["Step"] == "Stamping" and r2["Step"] == "Stamping":
-                        otype = "Stamping vs Stamping"
-                    else:
-                        otype = "Setup vs Stamping"
-                    overlaps.append((r1["Machine"], r1["Step"], r2["Machine"], r2["Step"], overlap_time, otype))
+                    ax.barh(y=idx, width=duration, left=start,
+                            color=step_colors[step_idx], edgecolor='black')
 
-overlap_df = pd.DataFrame(overlaps, columns=["Machine1","Step1","Machine2","Step2","Overlap Time","Type"])
+                    timeline_records.append({
+                        "Machine": f"Machine {idx + 1}",
+                        "Elbow #": q + 1,
+                        "Weld #": w + 1,
+                        "Step": label,
+                        "Start Time": round(start, 2),
+                        "End Time": round(end, 2),
+                        "Duration": round(duration, 2)
+                    })
+                    current_time = end
 
-if not overlap_df.empty:
-    st.subheader("Overlap Report")
-    st.write(overlap_df)
+        machine_run_times.append((f"Machine {idx + 1}", round(current_time - machine_start_time, 2)))
 
-    # summarize by machine
-    machine_summary = overlap_df.groupby("Machine1")["Overlap Time"].sum().add(
-        overlap_df.groupby("Machine2")["Overlap Time"].sum(), fill_value=0
-    ).reset_index()
-    machine_summary.columns = ["Machine","Total Overlap Time"]
+    # Overlap detection (setup vs setup, stamping vs stamping, setup vs stamping)
+    all_intervals = all_setup_intervals + all_stamping_intervals
+    for i1, (s_start, s_end, s_machine) in enumerate(all_intervals):
+        for i2, (t_start, t_end, t_machine) in enumerate(all_intervals):
+            if i1 < i2 and s_machine != t_machine:
+                if not (s_end <= t_start or s_start >= t_end):
+                    overlap_start = max(s_start, t_start)
+                    overlap_end = min(s_end, t_end)
+                    overlap_regions.append((overlap_start, overlap_end, s_machine - 1))
+                    overlap_regions.append((overlap_start, overlap_end, t_machine - 1))
+                    machine_overlap_counts[f"Machine {s_machine}"] += 1
+                    machine_overlap_counts[f"Machine {t_machine}"] += 1
 
-    # total runtime per machine
-    runtime_summary = schedule_df.groupby("Machine").apply(lambda x: x["Finish"].max()).reset_index()
-    runtime_summary.columns = ["Machine","Total Runtime"]
+    for start, end, machine_idx in overlap_regions:
+        ax.barh(y=machine_idx, width=end - start, left=start,
+                height=0.8, color='red', alpha=0.3,
+                edgecolor='red', linewidth=0.5)
 
-    # merge
-    merged = pd.merge(machine_summary, runtime_summary, on="Machine")
-    merged["% Runtime Overlap"] = (merged["Total Overlap Time"]/merged["Total Runtime"]*100).round(2)
-    st.write("### Overlap Totals per Machine")
-    st.dataframe(merged)
+    ax.set_yticks(range(4))
+    ax.set_yticklabels([f"Machine {i + 1}" for i in range(4)], fontsize=12)
+    ax.set_xlabel("Time (minutes)", fontsize=12)
+    ax.set_title("Weld Process Timeline", fontsize=16, weight="bold")
+    ax.grid(True, which='both', axis='x', linestyle='--', alpha=0.5)
+    ax.xaxis.set_major_locator(plt.MultipleLocator(50))
+    ax.xaxis.set_minor_locator(plt.MultipleLocator(10))
 
-    # summarize overlap by type
-    type_summary = overlap_df.groupby("Type")["Overlap Time"].sum().reset_index()
-    total_runtime_all = runtime_summary["Total Runtime"].sum()
-    type_summary["% of Total Runtime"] = (type_summary["Overlap Time"]/total_runtime_all*100).round(2)
-    st.write("### Overlap by Type")
-    st.dataframe(type_summary)
+    legend_elements = [
+        Patch(facecolor="orange", edgecolor='black', label="Set up"),
+        Patch(facecolor="grey", edgecolor='black', label="Weld start"),
+        Patch(facecolor="yellow", edgecolor='black', label="Stamping"),
+        Patch(facecolor="lightblue", edgecolor='black', label="Cooling"),
+        Patch(facecolor="red", edgecolor='red', alpha=0.3, label="Overlap")
+    ]
+    ax.legend(handles=legend_elements, loc="upper right")
 
-    # Machine Utilization Grade
-    total_overlap_all = type_summary["Overlap Time"].sum()
-    utilization = (1 - (total_overlap_all/total_runtime_all))*100
-    st.write("### Machine Utilization Grade")
-    st.write(f"Utilization: **{utilization:.2f}%**")
+    st.pyplot(fig)
 
-    if utilization >= 90:
-        grade = "A"
-    elif utilization >= 80:
-        grade = "B"
-    elif utilization >= 70:
-        grade = "C"
-    elif utilization >= 60:
-        grade = "D"
+    # Results
+    st.subheader("⏱️ Total Run Time Per Machine")
+    for name, runtime in machine_run_times:
+        st.write(f"**{name}**: {runtime:.2f} minutes")
+
+    st.subheader("📊 Overlap Count Per Machine")
+    has_overlap = any(count > 0 for count in machine_overlap_counts.values())
+    if has_overlap:
+        for machine, count in machine_overlap_counts.items():
+            runtime = dict(machine_run_times)[machine]
+            percentage = (count / runtime) * 100 if runtime > 0 else 0
+            st.write(f"**{machine}**: {count} overlaps ({percentage:.1f}% of runtime)")
     else:
-        grade = "F"
+        st.success("✅ No overlaps detected")
 
-    st.markdown(f"<h1 style='text-align:center; color:green;'>{grade}</h1>", unsafe_allow_html=True)
+    # --- Downloads ---
+    df = pd.DataFrame(timeline_records)
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button("📤 Export Timeline as CSV", data=csv, file_name="weld_timeline.csv", mime="text/csv")
 
-else:
-    st.success("No overlaps detected!")
+    pdf_buffer = io.BytesIO()
+    with PdfPages(pdf_buffer) as pdf:
+        # Page 1: Chart
+        fig.set_size_inches(16, 8)
+        pdf.savefig(fig, dpi=300, bbox_inches='tight')
 
-# --------------------
-# Export PDF
-# --------------------
-if st.button("📄 Export PDF"):
-    buf = io.BytesIO()
-    with PdfPages(buf) as pdf:
-        pdf.savefig(fig)
-
-        # Add overlap summary
-        fig2, ax2 = plt.subplots(figsize=(8,3))
+        # Page 2: Report
+        fig2, ax2 = plt.subplots(figsize=(8.5, 11))
         ax2.axis("off")
-        table_data = merged[["Machine","Total Overlap Time","Total Runtime","% Runtime Overlap"]].values.tolist()
-        table = ax2.table(cellText=table_data,
-                          colLabels=["Machine","Total Overlap Time","Total Runtime","% Runtime Overlap"],
-                          loc="center")
-        table.auto_set_font_size(False)
-        table.set_fontsize(8)
-        pdf.savefig(fig2)
 
-    st.download_button("Download PDF", data=buf.getvalue(), file_name="report.pdf")
+        y = 1.0
+        ax2.text(0.05, y, "Weld Process Report", fontsize=16, weight="bold", transform=ax2.transAxes)
+        y -= 0.1
+
+        ax2.text(0.05, y, "⏱️ Total Run Time Per Machine", fontsize=14, weight="bold", transform=ax2.transAxes)
+        y -= 0.05
+        for name, runtime in machine_run_times:
+            ax2.text(0.1, y, f"{name}: {runtime:.2f} minutes", fontsize=12, transform=ax2.transAxes)
+            y -= 0.04
+
+        y -= 0.05
+        ax2.text(0.05, y, "📊 Overlap Report", fontsize=14, weight="bold", transform=ax2.transAxes)
+        y -= 0.05
+        if has_overlap:
+            for machine, count in machine_overlap_counts.items():
+                runtime = dict(machine_run_times)[machine]
+                percentage = (count / runtime) * 100 if runtime > 0 else 0
+                ax2.text(0.1, y, f"{machine}: {count} overlaps ({percentage:.1f}% of runtime)", fontsize=12, transform=ax2.transAxes)
+                y -= 0.04
+        else:
+            ax2.text(0.1, y, "✅ No overlaps detected", fontsize=12, transform=ax2.transAxes)
+            y -= 0.04
+
+        pdf.savefig(fig2, dpi=300, bbox_inches='tight')
+        plt.close(fig2)
+
+    st.download_button("📥 Export Chart + Report as PDF", data=pdf_buffer.getvalue(),
+                       file_name="weld_report.pdf", mime="application/pdf")
+
+# --- Clear Mode ---
+if st.session_state.clear:
+    st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
+
+
+
+
+
