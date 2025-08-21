@@ -285,16 +285,16 @@ if st.button("📊 Generate Chart"):
         utilization_percent = 0
 
     # Determine letter grade + color
-    if utilization >= 90:
+    if utilization_percent >= 90:
         letter_grade = "A"
         color = "green"
-    elif utilization >= 80:
+    elif utilization_percent >= 80:
         letter_grade = "B"
         color = "limegreen"
-    elif utilization >= 70:
+    elif utilization_percent >= 70:
         letter_grade = "C"
         color = "orange"
-    elif utilization >= 60:
+    elif utilization_percent >= 60:
         letter_grade = "D"
         color = "orangered"
     else:
@@ -378,6 +378,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
