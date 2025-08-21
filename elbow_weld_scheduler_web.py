@@ -153,7 +153,10 @@ if st.button("📊 Generate Chart"):
 
         machine_run_times.append((f"Machine {idx + 1}", round(current_time - machine_start_time, 2)))
 
-    # Overlap detection (setup vs setup, stamping vs stamping, setup vs stamping)
+    # --- Overlap detection ---
+    machine_overlap_counts = {f"Machine {i+1}": 0 for i in range(4)}
+    machine_overlap_time = {f"Machine {i+1}": 0.0 for i in range(4)}
+
     all_intervals = all_setup_intervals + all_stamping_intervals
     for i1, (s_start, s_end, s_machine) in enumerate(all_intervals):
         for i2, (t_start, t_end, t_machine) in enumerate(all_intervals):
@@ -161,11 +164,17 @@ if st.button("📊 Generate Chart"):
                 if not (s_end <= t_start or s_start >= t_end):
                     overlap_start = max(s_start, t_start)
                     overlap_end = min(s_end, t_end)
+                    overlap_duration = overlap_end - overlap_start
+
                     overlap_regions.append((overlap_start, overlap_end, s_machine - 1))
                     overlap_regions.append((overlap_start, overlap_end, t_machine - 1))
+
                     machine_overlap_counts[f"Machine {s_machine}"] += 1
                     machine_overlap_counts[f"Machine {t_machine}"] += 1
+                    machine_overlap_time[f"Machine {s_machine}"] += overlap_duration
+                    machine_overlap_time[f"Machine {t_machine}"] += overlap_duration
 
+    # Draw overlaps on chart
     for start, end, machine_idx in overlap_regions:
         ax.barh(y=machine_idx, width=end - start, left=start,
                 height=0.8, color='red', alpha=0.3,
@@ -195,13 +204,17 @@ if st.button("📊 Generate Chart"):
     for name, runtime in machine_run_times:
         st.write(f"**{name}**: {runtime:.2f} minutes")
 
-    st.subheader("📊 Overlap Count Per Machine")
+    st.subheader("📊 Overlap Report Per Machine")
     has_overlap = any(count > 0 for count in machine_overlap_counts.values())
+
     if has_overlap:
-        for machine, count in machine_overlap_counts.items():
-            runtime = dict(machine_run_times)[machine]
-            percentage = (count / runtime) * 100 if runtime > 0 else 0
-            st.write(f"**{machine}**: {count} overlaps ({percentage:.1f}% of runtime)")
+        runtimes_dict = dict(machine_run_times)
+        for machine in machine_overlap_counts:
+            runtime = runtimes_dict[machine]
+            count = machine_overlap_counts[machine]
+            overlap_time = machine_overlap_time[machine]
+            percent_time = (overlap_time / runtime) * 100 if runtime > 0 else 0
+            st.write(f"**{machine}**: {count} overlaps, {overlap_time:.2f} minutes ({percent_time:.1f}% of runtime)")
     else:
         st.success("✅ No overlaps detected")
 
@@ -215,8 +228,8 @@ if st.button("📊 Generate Chart"):
         # Page 1: Chart
         fig.set_size_inches(16, 8)
         pdf.savefig(fig, dpi=300, bbox_inches='tight')
-
-        # Page 2: Report
+        
+        # --- PDF Export (Page 2 Report Section) ---
         fig2, ax2 = plt.subplots(figsize=(8.5, 11))
         ax2.axis("off")
 
@@ -234,10 +247,13 @@ if st.button("📊 Generate Chart"):
         ax2.text(0.05, y, "📊 Overlap Report", fontsize=14, weight="bold", transform=ax2.transAxes)
         y -= 0.05
         if has_overlap:
-            for machine, count in machine_overlap_counts.items():
-                runtime = dict(machine_run_times)[machine]
-                percentage = (count / runtime) * 100 if runtime > 0 else 0
-                ax2.text(0.1, y, f"{machine}: {count} overlaps ({percentage:.1f}% of runtime)", fontsize=12, transform=ax2.transAxes)
+            for machine in machine_overlap_counts:
+                runtime = runtimes_dict[machine]
+                count = machine_overlap_counts[machine]
+                overlap_time = machine_overlap_time[machine]
+                percent_time = (overlap_time / runtime) * 100 if runtime > 0 else 0
+                ax2.text(0.1, y, f"{machine}: {count} overlaps, {overlap_time:.2f} minutes ({percent_time:.1f}% of runtime)",
+                         fontsize=12, transform=ax2.transAxes)
                 y -= 0.04
         else:
             ax2.text(0.1, y, "✅ No overlaps detected", fontsize=12, transform=ax2.transAxes)
@@ -252,6 +268,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
