@@ -191,11 +191,12 @@ if st.button("📊 Generate Chart"):
     st.pyplot(fig)
 
     # Results
-    # --- Total Run Time Report ---
-    st.subheader("⏱️ Total Run Time Per Machine")
-    runtime_hours = machine_run_times / 60
-    for name, runtime in machine_run_times:
-        st.write(f"**{name}**: {runtime:.2f} minutes ({runtime_hours:.2f} hours)")
+    # --- Total Runtime per Machine ---
+    st.subheader("⏱️ Total Runtime per Machine")
+    for machine in df["Machine"].unique():
+        machine_runtime = df[df["Machine"] == machine]["Duration"].sum()
+        runtime_hours = machine_runtime / 60
+        st.write(f"**{machine}:** {machine_runtime} min ({runtime_hours:.2f} hr)")
 
     # --- Downtime Report ---
     st.subheader("⏳ Downtime Report")
@@ -386,6 +387,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
