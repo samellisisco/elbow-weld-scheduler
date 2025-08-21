@@ -249,42 +249,38 @@ if st.button("📊 Generate Chart"):
     # --- Downtime Report ---
     st.subheader("⏳ Downtime Report")
 
-    # Find the maximum end time across all machines
-    max_end_time = max([rec["End Time"] for rec in timeline_records])
+    if timeline_records:
+        # Find the maximum end time across all machines
+        max_end_time = max([rec["End Time"] for rec in timeline_records])
 
-    # Calculate final end time per machine
-    machine_end_times = {}
-    for rec in timeline_records:
-        machine = rec["Machine"]
-        end_time = rec["End Time"]
-        if machine not in machine_end_times or end_time > machine_end_times[machine]:
-            machine_end_times[machine] = end_time
+        # Calculate final end time per machine
+        machine_end_times = {}
+        for rec in timeline_records:
+            machine = rec["Machine"]
+            end_time = rec["End Time"]
+            if machine not in machine_end_times or end_time > machine_end_times[machine]:
+                machine_end_times[machine] = end_time
 
-    # Build downtime data
-    downtime_data = []
-    for machine, end_time in machine_end_times.items():
-        downtime = max_end_time - end_time
-        downtime_data.append({
-            "Machine": machine,
-            "Final End Time (min)": end_time,
-            "Downtime (min)": downtime
-        })
+        # Build downtime data
+        downtime_data = []
+        total_downtime = 0
+        for machine, end_time in machine_end_times.items():
+            downtime = max_end_time - end_time
+            total_downtime += downtime
+            downtime_data.append({
+                "Machine": machine,
+                "Final End Time (min)": end_time,
+                "Downtime (min)": downtime
+            })
 
-    # Display downtime table
-    downtime_df = pd.DataFrame(downtime_data)
-    st.table(downtime_df)
+        # Display downtime table
+        downtime_df = pd.DataFrame(downtime_data)
+        st.table(downtime_df)
 
-    # --- Downtime Calculation ---
-    max_end_time = df["End"].max()
-    downtime_per_machine = {}
-
-    for machine in df["Machine"].unique():
-        machine_end_time = df[df["Machine"] == machine]["End"].max()
-        downtime_per_machine[machine] = max_end_time - machine_end_time
-    
-    # Total downtime across all machines
-    total_downtime = sum(downtime_per_machine.values())
-    st.write(f"**Total Downtime (all machines):** {total_downtime:.2f} minutes")
+        # Show total downtime
+        st.write(f"**Total Downtime (min):** {total_downtime:.2f}")
+    else:
+        st.info("No timeline records available to calculate downtime.")
     
     # --- Updated Machine Utilization Grade ---
     # total_overlap_time is already computed earlier in your overlap section
@@ -387,6 +383,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
