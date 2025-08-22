@@ -36,11 +36,16 @@ if "clear" not in st.session_state:
 # --- Instructions Section ---
 with st.expander("📘 Instructions", expanded=False):
     st.markdown("""
+### Global Step Durations
+These step times will be applied to all machines.
+
 **Weld set up duration**: This is the time it takes to insert pipe segments, prep fusion machine, clean pipe, and face the pipe.  
 
 **Stamping duration**: This is the time it takes to stamp the weld, and is scheduled to happens right before the cooling step.  
 
 ### Machine Configurations
+These steps will be machine specific. 
+
 **Start time**: Is the time that the process starts. The operator can only set up one machine at a time so each machine will start in a staggered pattern. However you can edit this.  
 
 **Welds per elbow**: This is how many welds in a elbow, for example a 3 seg elbow has 2 weld.  
@@ -49,7 +54,9 @@ with st.expander("📘 Instructions", expanded=False):
 
 **Pipe size and DR**: Choose your pipe size and DR, this will determine the weld and cooling time according to ISCO HDPE Fusion manual.  
 
-### Generate Chart
+### Generate Process Timeline Report
+After inputting up the settings a process timeline report is generated. 
+
 **Weld Process Timeline**: This chart will show the length of each step as a process timeline for all the elbows for each machine. It will highlight the overlaps between active operator steps which are set up and stamping.  
 
 **Total Runtime**: Will show the total runtime on each machine in minutes and hours.  
@@ -62,7 +69,8 @@ with st.expander("📘 Instructions", expanded=False):
 
 **Machine Utilization Grade**: Gives a utilization grade based on the percentage of time with no overlaps or downtime over the total process time. It should give you an idea of if your process timeline will be efficient for the operator to run or if it's going to have a lot of downtime and step overlaps which will lead to a less efficient process and make it difficult for the operator to be efficient.  
 
-**Download the data**: You can download the process timeline as a .csv or download a pdf report of the timeline as well as other data.  
+### Download Data
+You can download the process timeline as a .csv or download a pdf report of the timeline as well as other data.  
 """)
 
 # Clear chart button
@@ -138,7 +146,7 @@ for i in range(1, 5):
         })
 
 # --- Generate Chart ---
-if st.button("📊 Generate Chart"):
+if st.button("📊 Generate Process Timeline Report"):
     st.session_state.clear = False  # reset clear flag
     fig, ax = plt.subplots(figsize=(16, 8), dpi=150)
     overlap_regions = []
@@ -419,6 +427,7 @@ if st.button("📊 Generate Chart"):
 # --- Clear Mode ---
 if st.session_state.clear:
     st.info("Chart and results cleared. Adjust inputs and click **Generate Chart** to start fresh.")
+
 
 
 
